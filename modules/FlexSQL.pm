@@ -14,11 +14,7 @@ sub Pdie {
 }
 
 sub Pfresh {
-	if (FIO::config('UI','GUI') == 'no') {
-		NoGUI::Pfresh();
-	} else {
-		PGK::Pfresh();
-	}
+	TGK::TFresh();
 }
 
 my $DBNAME = Sui::passData('dbname');
@@ -38,7 +34,7 @@ sub getDB {
 	unless (defined $dbtype) { $dbtype = FIO::config('DB','type'); } # try to save
 	use DBI;
 	if ($dbtype eq "L") { # for people without access to a SQL server
-		my $host = shift || "$DBNAME.dbl";
+		my $host = shift || "${DBNAME}.dbl";
 		$dbh = DBI->connect( "dbi:SQLite:$host" ) || return undef,1,$DBI::errstr;
 #		$dbh->do("SET NAMES 'utf8mb4'");
 		print "\n[I] SQLite DB $host connected.\n" if main::howVerbose() > 2;
@@ -137,8 +133,8 @@ print ".";
 sub makeTables { # used for first run
 	my ($dbh,$widget,$altfile) = @_;
 	print "Creating tables...";
-	open(TABDEF, ($altfile ? "<$altfile.msq" : "<$DBNAME.msq")); # open table definition file
-	my @cmds = <TABDEF>;
+	open(TABDEF, ($altfile ? "<$altfile.msq" : "<$DBNAME.msq")) unless (ref($altfile) eq "ARRAY"); # open table definition file
+	my @cmds = (ref($altfile) eq "ARRAY" ? @$altfile : <TABDEF>);
 	my $tot = scalar @cmds;
 	print "\n[I] Importing $tot lines.";
 	foreach my $i (0 .. $#cmds) {
@@ -154,6 +150,7 @@ sub makeTables { # used for first run
 		$widget->text("Making tables... table " . $i + 1 . "/$tot" . ($error ? ": $st\n" : "" )) if defined $widget;
 		print ".";
 		Pfresh();
+		close(TABDEF) unless (ref($altfile) eq "ARRAY");
 		if($error) { return undef,$error; }
 	}
 	return $dbh,"OK";

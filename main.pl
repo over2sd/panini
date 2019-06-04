@@ -4,7 +4,7 @@ my $PROGRAMNAME = "Panini pantry system";
 my $version = "0.01a";
 my $cfn = "config.ini";
 my $debug = 9;
-my $dbn = 'pantry.dbl';
+my $dbn = 'pantry';
 my $dbs = '';
 
 $|++; # Immediate STDOUT, maybe?
@@ -24,12 +24,17 @@ sub howVerbose {
 	return $debug;
 }
 
+print "DB: $dbn...\n";
+
 use Tk;
 
 use lib "./modules/";
 print "\n[I] Loading modules...";
 
+require skrDebug;
+
 require Sui;
+Sui::storeData('dbname',$dbn);
 require Common;
 require FIO;
 require FlexSQL;
