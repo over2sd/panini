@@ -36,19 +36,19 @@ sub showPantryLoader {
 	my $if = $of->Frame();
 	$if->grid(-row=>2,-column=>1,-columnspan=>4);
 	sub saveItemInfo {
-		my ($but,$dbh,$upc,$name,$size,$uom,$qty,$generic,$hr,$tf) = @_;
+		my ($but,$dbh,$upc,$name,$size,$uom,$qty,$generic,$keep,$hr,$tf) = @_;
 #		$but->configure(-state => 'disabled');
 		if ($name eq "UNNAMED") { print "Product needs name!\n"; return; }
 		if ($generic eq "Grocery") { print "Product needs equivalence!\n"; return; }
-		print "N: $name, S: $size, U: $uom, C: $upc... Q: $qty, G: $generic...\n";
+		print "N: $name, S: $size, U: $uom, C: $upc... Q: $qty, G: $generic, K: $keep...\n";
 		my $st;
 		skrDebug::dump($hr);
 		if ($$hr{update}) {
-			$st = "UPDATE items SET name=?, unit=?, size=?, generic=? WHERE upc=?;";
+			$st = "UPDATE items SET name=?, unit=?, size=?, generic=?, keep=? WHERE upc=?;";
 		} else {
-			$st = "INSERT INTO items (name,unit,size,generic,upc) VALUES (?,?,?,?,?);";
+			$st = "INSERT INTO items (name,unit,size,generic,keep,upc) VALUES (?,?,?,?,?,?);";
 		}
-		my @parms = ($name,$uom,$size,$generic,$upc);
+		my @parms = ($name,$uom,$size,$generic,$keep,$upc);
 		my $err = FlexSQL::doQuery(2,$dbh,$st,@parms);
 		return unless ($err);
 		emptyFrame($tf);
@@ -88,17 +88,18 @@ sub showPantryLoader {
 		$$row{update} = (defined $row ? 1 : 0);
 		$$row{name} = "UNNAMED" unless defined $$row{name};
 		$$row{qty} = $qty;
-		my ($nv,$sv,$uv,$gv) = (undef,1,"oz","Grocery");
+		my ($nv,$sv,$uv,$gv,$kv) = (undef,1,"oz","Grocery",0);
 		$sv = $$row{size} if defined $$row{size};
 		$uv = $$row{unit} if defined $$row{unit};
 		$gv = $$row{generic} if defined $$row{generic};
+		$kv = $$row{keep} if defined $$row{keep};
 		our $okb;
 		our $ne = entryRow($if,"Name: ",1,1,undef,\$nv,\&myValidate);
 		our $ge = entryRow($if,"Item Equivalence: ",4,1,undef,\$gv,\&myValidate);
 		$okb = $if->Button(-text=>"Save", -state => 'disabled', -command=> sub {
 			$ne->focus if ($nv eq "UNNAMED");
 			$ge->focus if ($gv eq "Grocery");
-			saveItemInfo($okb,$dbh,$ut,$nv,$sv,$uv,$qty,$gv,$row,$if);
+			saveItemInfo($okb,$dbh,$ut,$nv,$sv,$uv,$qty,$gv,$kv,$row,$if);
 		});
 		sub myValidate {
 			my ($pv,$av,$cv) = @_;
@@ -122,9 +123,12 @@ sub showPantryLoader {
 		$ce->grid(-row=>2,-column=>3);
 		my $ql = $if->Label(-text=>"Qty: ");
 		$ql->grid(-row=>1,-column=>3);
+		$if->Label(-text=>"/")->grid(-row=>1,-column=>5);
 		my $changed = 0;
 		my $qe = $if->Entry(-textvariable=>\$qty,-validate=>'focusout',-validatecommand=> \&myValidate );
+		my $ke = $if->Entry(-textvariable=>\$kv,-validate=>'focusout',-validatecommand=> \&myValidate );
 		$qe->grid(-row=>1,-column=>4);
+		$ke->grid(-row=>1,-column=>6);
 		$okb->grid(-row=>6,-column=>5);
 	}
 	$ue->bind('<Key-Return>', \&incrementUPC);
@@ -146,15 +150,51 @@ sub showButtonPanel {
 }
 print ".";
 
-sub showPantryContents {
+sub showPantryContents { # For cooking/reducing inventory
 }
-sub showProductEntry {
+sub showProductEntry { # For adding a new product entry
 }
-sub showProductInfo {
+sub showProductInfo { # for pricing products in the store
+
+#	showAddMinButton($of); # Make the item being priced an item user wants to keep on hand.
 }
-sub showShoppingList {
+
+sub getMinimums { # calculate the highest minimum of items in a category.
+	# Allows you to set a minimum for "Tomatoes, Diced" on the name brand can and have it apply to the generic that has a keep of 0.
+	my $minimums = Sui::passData('minimums');
+	unless (Sui::passData('minchanged') <= Sui::passData('minindexed')) { # only do this once unless a minimum has been chaged.
+		Sui::storeData('minindexed',time(0)); # store new index time
+		# pull data from DB here.
+		Sui::storeData('minimums',$minimums); # Store new minimums
+	}
+	return $minimums;
 }
-sub showPriceEntry {
+print ".";
+
+sub getDeficits {
+	my ($kvs,) = @_;
+	my @generics = keys %$kvs;
+	my @lows;
+	# get list of lows/outs
+	return @lows;
+}
+print ".";
+
+sub showAddMinButton { # Adds a button to the list that allows adding a
+	# minimum/upc, allowing user to add an item to the shopping list
+	# and PITS without changing its onhand qty.	
+}
+
+sub showShoppingList { # For buying items that are getting low
+	my ($parent,) = @_;
+	my $of = $parent->{rtpan};
+	emptyFrame($of);
+	my $pims = getMinimums();
+	my @list = getDeficits($pims);
+	listToBuys($parent,@list);
+	showAddMinButton($of); # add a minimum for items not yet in DB for keeping on hand.
+}
+sub showPriceEntry { # For showing a price history and analysis
 }
 sub showStoreEntry {
 }
