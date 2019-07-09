@@ -28,13 +28,14 @@ sub showPantryLoader {
 	my ($parent,) = @_;
 	my $of = $parent->{rtpan};
 	emptyFrame($of);
+	my $tmp = $of->Label(-text => "Enter new pantry contents")->grid(-row => 1, -column => 1);
 	my $upc = "";
 	my $name = "";
 	my $size = 0;
 	my $unit = "oz";
-	my $ue = entryRow($of,"UPC: ",1,1);
+	my $ue = entryRow($of,"UPC: ",2,1);
 	my $if = $of->Frame();
-	$if->grid(-row=>2,-column=>1,-columnspan=>4);
+	$if->grid(-row=>3,-column=>1,-columnspan=>4);
 	sub saveItemInfo {
 		my ($but,$dbh,$upc,$name,$size,$uom,$qty,$generic,$keep,$hr,$tf) = @_;
 #		$but->configure(-state => 'disabled');
@@ -125,8 +126,8 @@ sub showPantryLoader {
 		$ql->grid(-row=>1,-column=>3);
 		$if->Label(-text=>"/")->grid(-row=>1,-column=>5);
 		my $changed = 0;
-		my $qe = $if->Entry(-textvariable=>\$qty,-validate=>'focusout',-validatecommand=> \&myValidate );
-		my $ke = $if->Entry(-textvariable=>\$kv,-validate=>'focusout',-validatecommand=> \&myValidate );
+		my $qe = $if->Entry(-textvariable=>\$qty,-validate=>'focusout',-validatecommand=> \&myValidate, -width => 4, );
+		my $ke = $if->Entry(-textvariable=>\$kv,-validate=>'focusout',-validatecommand=> \&myValidate, -width => 4, );
 		$qe->grid(-row=>1,-column=>4);
 		$ke->grid(-row=>1,-column=>6);
 		$okb->grid(-row=>6,-column=>5);
@@ -151,10 +152,19 @@ sub showButtonPanel {
 print ".";
 
 sub showPantryContents { # For cooking/reducing inventory
+	my ($parent,) = @_;
+	my $of = $parent->{rtpan};
+	emptyFrame($of);
+	my $tmp = $of->Label(-text => "Contents of Pantry")->pack();
+
 }
 sub showProductEntry { # For adding a new product entry
 }
 sub showProductInfo { # for pricing products in the store
+	my ($parent,) = @_;
+	my $of = $parent->{rtpan};
+	emptyFrame($of);
+	my $tmp = $of->Label(-text => "Pricing Tool")->pack();
 
 #	showAddMinButton($of); # Make the item being priced an item user wants to keep on hand.
 }
@@ -162,8 +172,14 @@ sub showProductInfo { # for pricing products in the store
 sub getMinimums { # calculate the highest minimum of items in a category.
 	# Allows you to set a minimum for "Tomatoes, Diced" on the name brand can and have it apply to the generic that has a keep of 0.
 	my $minimums = Sui::passData('minimums');
+	my $dbh = Sui::passData('db');
 	unless (Sui::passData('minchanged') <= Sui::passData('minindexed')) { # only do this once unless a minimum has been chaged.
-		Sui::storeData('minindexed',time(0)); # store new index time
+		Sui::storeData('minindexed',time()); # store new index time
+		my $st = "SELECT generic, MAX(keep) FROM items GROUP BY generic;";
+		$list = FlexSQL::doQuery(4,$dbh,$st,$ut);
+		
+
+
 		# pull data from DB here.
 		Sui::storeData('minimums',$minimums); # Store new minimums
 	}
@@ -185,10 +201,15 @@ sub showAddMinButton { # Adds a button to the list that allows adding a
 	# and PITS without changing its onhand qty.	
 }
 
+sub listToBuys {
+	
+}
+
 sub showShoppingList { # For buying items that are getting low
 	my ($parent,) = @_;
 	my $of = $parent->{rtpan};
 	emptyFrame($of);
+	my $tmp = $of->Label(-text => "Shopping List")->pack();
 	my $pims = getMinimums();
 	my @list = getDeficits($pims);
 	listToBuys($parent,@list);
@@ -208,6 +229,7 @@ sub populateMainWin {
 		print "-=-";
 		FlexSQL::makeTables($dbh);
 	}
+	Sui::storeData('db',$dbh);
 	showButtonPanel($win);
 	showPantryLoader($win);
 }
