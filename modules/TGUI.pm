@@ -3,6 +3,7 @@ print __PACKAGE__;
 
 use Panini qw(Prod );
 require Tk::BrowseEntry;
+require Tk::Pane;
 
 
 sub Tdie {
@@ -14,7 +15,11 @@ print ".";
 
 sub entryRow {
 	my ($parent,$name,$r,$c,$s,$tv,$valcmd) = @_;
+print "Debug: $parent ... " . ref($parent) . " ...\n";
 	my %args = ( -row => $r, -column => $c );
+	unless (defined $parent) {
+		print Common::lineNo();
+	}
 	my $lab = $parent->Label(-text=>"$name")->grid(%args);
 	$args{-columnspan} = $s if defined $s;
 	$args{-column}++;
@@ -22,6 +27,18 @@ sub entryRow {
 	$ent->configure(-textvariable=> $tv) if (defined $tv and ref($tv) eq "SCALAR");
 	$ent->configure(-validate => 'focusout', -validatecommand => $valcmd) if (defined $valcmd and ref($valcmd) eq "CODE");
 	return $ent;
+}
+print ".";
+
+sub listRow {
+	my ($parent,$name,$r,$c,$tah,@list) = @_;
+	my %args = ( -row => $r, -column => $c );
+	my $lab = $parent->Label(-text=>"$name", %$tah)->grid(%args);
+	foreach my $i (@list) {
+		$args{-column}++;
+		$parent->Label(-text=>"$i", %$tah)->grid(%args);
+	}
+	return $lab;
 }
 
 sub emptyFrame {
@@ -32,18 +49,25 @@ sub emptyFrame {
 	}
 }
 
+sub makeMyFrame {
+	my ($of,$heading) = @_;
+	emptyFrame($of);
+	my $header = $of->Label(-text => "$heading")->grid(-row => 1, -column => 1);
+	my %args = %{ Sui::passData('frameargs') };
+	my $if = $of->Frame(%args);
+	$if->grid(-row=>3,-column=>1,-columnspan=>4);
+	return $if;
+}
+
 sub showPantryLoader {
 	my ($parent,) = @_;
 	my $of = $parent->{rtpan};
-	emptyFrame($of);
-	my $tmp = $of->Label(-text => "Enter new pantry contents")->grid(-row => 1, -column => 1);
 	my $upc = "";
 	my $name = "";
 	my $size = 0;
 	my $unit = "oz";
+	my $if = makeMyFrame($of,"Enter new pantry contents");
 	my $ue = entryRow($of,"UPC: ",2,1);
-	my $if = $of->Frame();
-	$if->grid(-row=>3,-column=>1,-columnspan=>4);
 	sub saveItemInfo {
 		my ($but,$dbh,$upc,$name,$size,$uom,$qty,$generic,$keep,$hr,$tf) = @_;
 #		$but->configure(-state => 'disabled');
@@ -78,6 +102,7 @@ sub showPantryLoader {
 	# bind enter here to a function that either adds one to the onhand,
 	#	or if not found, pulls open the description entries below for saving.
 	sub incrementUPC {
+		my $ue = shift;
 		my $newkeep = 0;
 		my $ut = $ue->get();
 		if ($ut eq "" or not defined $ue) {
@@ -121,6 +146,7 @@ sub showPantryLoader {
 			$ue->delete(0, 'end');
 			$newkeep and Sui::storeData('minchanged',time());
 			saveItemInfo($okb,$dbh,$ut,$nv,$sv,$uv,$qty,$gv,$kv,$row,$if);
+			$ue->focus();
 		});
 		sub myValidate {
 			my ($pv,$av,$cv) = @_;
@@ -152,31 +178,60 @@ sub showPantryLoader {
 		$ke->grid(-row=>1,-column=>6);
 		$okb->grid(-row=>6,-column=>5);
 	}
-	$ue->bind('<Key-Return>', \&incrementUPC);
+	$ue->bind('<Key-Return>', sub { incrementUPC($ue); });
 	$ue->focus;
 }
 print ".";
 
 sub showButtonPanel {
 	my ($parent,) = @_;
-	my $bf = $parent->Frame(-relief=>'groove');
+	my $bf = $parent->Frame(-relief=>'groove', -width => 10);
+	$bf->Label(-text=>"Tasks:",-width=>7)->pack();
 	my %butpro = ( -fill=>'x', -padx=>2, -pady=>2);
-	my $loadb = $bf->Button(-text=>"Store",-command=>sub { showPantryLoader($parent); })->pack(%butpro);
+#	my $loadb = $bf->Button(-text=>"Store",-command=>sub { showPantryLoader($parent); })->pack(%butpro); # disabled until I can figure out why it fails after loading with button
 	my $contb = $bf->Button(-text=>"Cook",-command=>sub { showPantryContents($parent); })->pack(%butpro);
 	my $listb = $bf->Button(-text=>"Buy",-command=>sub { showShoppingList($parent); })->pack(%butpro);
 	my $prodb = $bf->Button(-text=>"Price",-command=>sub { showProductInfo($parent); })->pack(%butpro);
 	
 	
-	$bf->grid(-row=>1,-column=>1,-sticky=>"nw");
+	$bf->grid(-row=>1,-column=>1,-sticky=>"nws");
+}
+print ".";
+
+sub setQty {
+	my ($upc,$qty) = @_;
+	my $st = "UPDATE counts SET qty=? WHERE upc=?;";
+	my $dbh = Sui::passData('db');
+	return -1 if ($qty < 0); # prevent negative onhands
+	my $err = FlexSQL::doQuery(2,$dbh,$st,$qty,$upc);
+	print "Err: $err\n";
+	return $err;
 }
 print ".";
 
 sub showPantryContents { # For cooking/reducing inventory
 	my ($parent,) = @_;
 	my $of = $parent->{rtpan};
-	emptyFrame($of);
-	my $tmp = $of->Label(-text => "Contents of Pantry")->pack();
-
+	my $if = makeMyFrame($of,"Contents of Pantry");
+	my %args = %{ Sui::passData('frameargs') };
+	$args{-width} *= 0.9;
+	my $sf = $if->Scrolled('Frame', -scrollbars => 'osoe', %args)->pack(-fill => 'both',);
+	$sf->Label(-text => " ", -width => 80, -height => 2)->grid(-row => 2, -column => 1, -columnspan => 7);
+	my $st = "SELECT * FROM items;";
+	my $qst = "SELECT qty FROM counts WHERE upc=?;";
+	my $dbh = Sui::passData('db');
+	my $tah = { -justify => 'left', };
+	my $res = FlexSQL::doQuery(3,$dbh,$st,'upc'); # Get items in pantry
+	my @order = sort {$$res{$a}{generic} cmp $$res{$b}{generic}} keys %$res;
+	listRow($sf,"Qty",3,1,$tah,"Of","Item","Product","UPC");
+	my $row = 4;
+	foreach my $i (@order) {
+		my $qty = @{ FlexSQL::doQuery(7,$dbh,$qst,$$res{$i}{upc}) }[0];
+		my $q = listRow($sf,$qty,$row,1,$tah,"$$res{$i}{keep}","$$res{$i}{generic}","$$res{$i}{name}","$$res{$i}{upc}");
+		my $usebutton = $sf->Button(-text => "-1",-command => sub { $qty--; setQty($$res{$i}{upc},$qty); $q->configure(-text => "$qty"); }, -padx => 3)->grid(-row => $row, -column => 6);
+		my $undobutton = $sf->Button(-text => "+1",-command => sub { $qty++; setQty($$res{$i}{upc},$qty); $q->configure(-text => "$qty"); }, -padx => 3)->grid(-row => $row, -column => 7);
+		$row++;
+	}
 }
 sub showProductEntry { # For adding a new product entry
 }
@@ -184,9 +239,9 @@ sub showProductInfo { # for pricing products in the store
 	my ($parent,) = @_;
 	my $of = $parent->{rtpan};
 	emptyFrame($of);
-	my $tmp = $of->Label(-text => "Pricing Tool")->pack();
+	my $if = makeMyFrame($of,"Pricing Tool");
 
-	showAddMinButton($of); # Make the item being priced an item user wants to keep on hand.
+	showAddMinButton($of,0); # Make the item being priced an item user wants to keep on hand.
 }
 
 sub getMinimums { # calculate the highest minimum of items in a category.
@@ -232,7 +287,8 @@ print ".";
 
 sub showAddMinButton { # Adds a button to the list that allows adding a
 	# minimum/upc, allowing user to add an item to the shopping list
-	# and PITS without changing its onhand qty.	
+	# and PITS without changing its onhand qty.
+	# parent, grid (0 = pack)
 }
 
 sub listToBuys {
@@ -258,20 +314,22 @@ sub listToBuys {
 		$parent->Label(-text => "$qty")->grid(-row => $row,-column => 4);
 		my $buy = $desired - $qty;
 		$parent->Label(-text => "$buy")->grid(-row => $row,-column => 6);
+		$parent->Checkbutton( -text => "")->grid(-row => $row, -column => 7); # just a user element for shopping convenience.
 		$row++;
 	}
 }
 
 sub showShoppingList { # For buying items that are getting low
 	my ($parent,) = @_;
-FIO::config('Debug','v',4);
+	my %args = %{ Sui::passData('frameargs') };
 	my $of = $parent->{rtpan};
 	emptyFrame($of);
-	my $tmp = $of->Label(-text => "Shopping List")->grid(-row => 1, -column => 2);
+	my $header = $of->Label(-text => "Shopping List")->grid(-row => 1, -column => 2);
 	my @list = getDeficits(getMinimums());
-skrDebug::dump(\@list);
-	listToBuys($of,@list);
-	showAddMinButton($of); # add a minimum for items not yet in DB for keeping on hand.
+	my $if = $of->Frame()->grid(-row => 1, -column => 1, -columnspan => 7);
+	my $sf = $if->Scrolled('Frame', -scrollbars => 'osoe', %args)->pack(-fill => 'both',);
+	listToBuys($sf,@list);
+	showAddMinButton($of,3); # add a minimum for items not yet in DB for keeping on hand.
 }
 sub showPriceEntry { # For showing a price history and analysis
 }
@@ -280,7 +338,11 @@ sub showStoreEntry {
 
 sub populateMainWin {
 	my ($dbh,$win,$reset) = @_;
-	my $of = $win->Frame(-relief=>"raised");
+	my $w = $win->width * 0.9;
+	my $h = $win->height * 0.9;
+	my $frameargs = {-width => 600, -height => 440};
+	Sui::storeData('frameargs',$frameargs);
+	my $of = $win->Frame(-relief=>"raised", %$frameargs);
 #	$of->configure(-scrollbars => 'e');
 	$win->{rtpan} = $of;
 	$of->grid(-row=>1,-column=>2,-columnspan=>7,-sticky=>"nse");
