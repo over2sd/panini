@@ -7,6 +7,8 @@ use Exporter;
 @EXPORT = qw( Dumper dump );
 
 sub dump {
-	print Dumper shift;
+	my ($ref,$desc) = @_;
+	print "$desc: " if defined $desc;
+	print Dumper $ref;
 }
 1;

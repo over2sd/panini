@@ -21,7 +21,7 @@ my %data = (
 		othertag => ["othertag_(context1)","othertag_(context2)"]
 	},
 	objectionablecontent => [],
-	minchanged => 0,
+	minchanged => 1,
 	minindexed => 0,
 	minimums => {},
 );

@@ -4,6 +4,14 @@ print __PACKAGE__;
 use Panini qw(Prod );
 require Tk::BrowseEntry;
 
+
+sub Tdie {
+# attempt to save config here?
+	print @_;
+	exit(0);
+}
+print ".";
+
 sub entryRow {
 	my ($parent,$name,$r,$c,$s,$tv,$valcmd) = @_;
 	my %args = ( -row => $r, -column => $c );
@@ -70,7 +78,12 @@ sub showPantryLoader {
 	# bind enter here to a function that either adds one to the onhand,
 	#	or if not found, pulls open the description entries below for saving.
 	sub incrementUPC {
+		my $newkeep = 0;
 		my $ut = $ue->get();
+		if ($ut eq "" or not defined $ue) {
+			print "Empty UPC!\n";
+			return;
+		}
 		print "Received: $ut...\n";
 		my $dbh = FlexSQL::getDB();
 		my $st = "SELECT * FROM counts WHERE upc=?;";
@@ -82,6 +95,10 @@ sub showPantryLoader {
 		}
 		my $err = FlexSQL::doQuery(2,$dbh,$st,$ut);
 		print "Err: $err\n";
+		if (defined $row) { # get updated qty, because we just changed it.
+			my $st = "SELECT * FROM counts WHERE upc=?;";
+			my $row = FlexSQL::doQuery(6,$dbh,$st,$ut);
+		}
 		my $qty = (defined $$row{qty} ? $$row{qty} : 1);
 		$st = "SELECT * FROM items WHERE upc=?;";
 		$row = FlexSQL::doQuery(6,$dbh,$st,$ut);
@@ -93,6 +110,7 @@ sub showPantryLoader {
 		$sv = $$row{size} if defined $$row{size};
 		$uv = $$row{unit} if defined $$row{unit};
 		$gv = $$row{generic} if defined $$row{generic};
+		if (defined $$row{keep} and $$row{keep} ne $kv) { $newkeep = 1; }
 		$kv = $$row{keep} if defined $$row{keep};
 		our $okb;
 		our $ne = entryRow($if,"Name: ",1,1,undef,\$nv,\&myValidate);
@@ -100,6 +118,8 @@ sub showPantryLoader {
 		$okb = $if->Button(-text=>"Save", -state => 'disabled', -command=> sub {
 			$ne->focus if ($nv eq "UNNAMED");
 			$ge->focus if ($gv eq "Grocery");
+			$ue->delete(0, 'end');
+			$newkeep and Sui::storeData('minchanged',time());
 			saveItemInfo($okb,$dbh,$ut,$nv,$sv,$uv,$qty,$gv,$kv,$row,$if);
 		});
 		sub myValidate {
@@ -147,7 +167,7 @@ sub showButtonPanel {
 	my $prodb = $bf->Button(-text=>"Price",-command=>sub { showProductInfo($parent); })->pack(%butpro);
 	
 	
-	$bf->grid(-row=>1,-column=>1,-sticky=>"nsw");
+	$bf->grid(-row=>1,-column=>1,-sticky=>"nw");
 }
 print ".";
 
@@ -166,7 +186,7 @@ sub showProductInfo { # for pricing products in the store
 	emptyFrame($of);
 	my $tmp = $of->Label(-text => "Pricing Tool")->pack();
 
-#	showAddMinButton($of); # Make the item being priced an item user wants to keep on hand.
+	showAddMinButton($of); # Make the item being priced an item user wants to keep on hand.
 }
 
 sub getMinimums { # calculate the highest minimum of items in a category.
@@ -176,11 +196,11 @@ sub getMinimums { # calculate the highest minimum of items in a category.
 	unless (Sui::passData('minchanged') <= Sui::passData('minindexed')) { # only do this once unless a minimum has been chaged.
 		Sui::storeData('minindexed',time()); # store new index time
 		my $st = "SELECT generic, MAX(keep) FROM items GROUP BY generic;";
-		$list = FlexSQL::doQuery(4,$dbh,$st,$ut);
-		
-
-
-		# pull data from DB here.
+		$list = FlexSQL::doQuery(4,$dbh,$st); # pull data from DB here.
+		foreach my $a (@$list) {
+			my ($k,$v) = @$a;
+			$$minimums{$k} = $v;
+		}
 		Sui::storeData('minimums',$minimums); # Store new minimums
 	}
 	return $minimums;
@@ -191,7 +211,21 @@ sub getDeficits {
 	my ($kvs,) = @_;
 	my @generics = keys %$kvs;
 	my @lows;
-	# get list of lows/outs
+	my $pst = "SELECT upc,name FROM items WHERE generic=?;";
+	my $cst = "SELECT qty FROM counts WHERE upc=?;";
+	my $dbh = Sui::passData('db');
+	my $wiggle = (FIO::config('Rules','beloworat') ? 1 : 0);
+	foreach my $k (@generics) { # get list of lows/outs
+		my $list = FlexSQL::doQuery(4,$dbh,$pst,$k); # Get items in this generic
+		foreach my $i (@$list) {
+			my ($upc,$name) = @$i;
+			my $qty = FlexSQL::doQuery(7,$dbh,$cst,$upc);
+			$qty = $$qty[0];
+			if (($qty - $wiggle) < $$kvs{$k}) {
+				push(@lows,[$k,$upc,$name,$qty,$$kvs{$k}]); # store info for use elsewhere
+			}
+		}
+	}
 	return @lows;
 }
 print ".";
@@ -202,17 +236,41 @@ sub showAddMinButton { # Adds a button to the list that allows adding a
 }
 
 sub listToBuys {
-	
+	my ($parent,@list) = @_;
+	my $curhed = "";
+	my $row = 2;
+	$parent->Label(-text => "UPC")->grid(-row => $row, -column => 1);
+	$parent->Label(-text => "Item")->grid(-row => $row, -column => 2);
+	$parent->Label(-text => "OnHand")->grid(-row => $row, -column => 4);
+	$parent->Label(-text => "Desired")->grid(-row => $row, -column => 5);
+	$parent->Label(-text => "Buy")->grid(-row => $row, -column => 6);
+	$row++;
+	foreach my $i (@list) {
+		my ($gen,$upc,$name,$qty,$desired) = @$i;
+		unless ($gen eq $curhed) {
+			$curhed = $gen;
+			$parent->Label(-text => "$curhed:", -font => [-underline => 1])->grid(-row => $row,-column => 2);
+			$parent->Label(-text => "$desired")->grid(-row => $row,-column => 5);
+			$row++;
+		}
+		$parent->Label(-text => "$upc")->grid(-row => $row,-column => 1);
+		$parent->Label(-text => "$name")->grid(-row => $row,-column => 3);
+		$parent->Label(-text => "$qty")->grid(-row => $row,-column => 4);
+		my $buy = $desired - $qty;
+		$parent->Label(-text => "$buy")->grid(-row => $row,-column => 6);
+		$row++;
+	}
 }
 
 sub showShoppingList { # For buying items that are getting low
 	my ($parent,) = @_;
+FIO::config('Debug','v',4);
 	my $of = $parent->{rtpan};
 	emptyFrame($of);
-	my $tmp = $of->Label(-text => "Shopping List")->pack();
-	my $pims = getMinimums();
-	my @list = getDeficits($pims);
-	listToBuys($parent,@list);
+	my $tmp = $of->Label(-text => "Shopping List")->grid(-row => 1, -column => 2);
+	my @list = getDeficits(getMinimums());
+skrDebug::dump(\@list);
+	listToBuys($of,@list);
 	showAddMinButton($of); # add a minimum for items not yet in DB for keeping on hand.
 }
 sub showPriceEntry { # For showing a price history and analysis
@@ -223,8 +281,9 @@ sub showStoreEntry {
 sub populateMainWin {
 	my ($dbh,$win,$reset) = @_;
 	my $of = $win->Frame(-relief=>"raised");
+#	$of->configure(-scrollbars => 'e');
 	$win->{rtpan} = $of;
-	$of->grid(-row=>1,-column=>2,-columnspan=>4,-sticky=>"nse");
+	$of->grid(-row=>1,-column=>2,-columnspan=>7,-sticky=>"nse");
 	unless (FlexSQL::table_exists($dbh,"items") && FlexSQL::table_exists($dbh,"stores")) {
 		print "-=-";
 		FlexSQL::makeTables($dbh);

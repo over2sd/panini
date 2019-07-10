@@ -10,7 +10,7 @@ use FIO qw( config );
 use Sui;
 
 sub Pdie {
-	return PGK::Pdie(@_) or NoGUI::Pdie(@_);
+	return PGK::Pdie(@_) or NoGUI::Pdie(@_) or TGUI::Tdie(@_);
 }
 
 sub Pfresh {
