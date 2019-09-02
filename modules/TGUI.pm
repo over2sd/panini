@@ -154,11 +154,26 @@ sub showPantryLoader {
 			$okb->configure( -state=> 'active' ) if (defined $okb);
 			return 1
 		}
-		
+		sub formatUPCinfo {
+			my ($info) = @_;
+			print join(',',keys %$info);
+			#title weight size offers[title] description images
+			TGK::updateEntry($ne,"$$info{title}") if exists $$info{title} and $$info{title} ne '';
+			print "Name: $$info{title}\n";
+			TGK::updateEntry($se,"$$info{size}") if exists $$info{size} and $$info{size} ne '';
+			TGK::updateEntry($se,"$$info{weight}") if exists $$info{wieght} and $$info{wieght} ne '';
+			print "Size: $$info{size}/$$info{weight}\n";
+			my $generictext = $$info{title};
+			$generictext =~ s/$$info{brand} //i;
+			TGK::updateEntry($ge,"$generictext") if $generictext ne '';
+			print "Equivalence: $generictext\n";
+			$if->Label(-text => $$info{description}, -wraplength => 275)->grid(-row => 5, -column => 1, -columnspan => 6) if exists $$info{description} and $$info{description} ne '';
+			print "Desc: $$info{description}\n";
+		}
 		$ne->delete(0,'end');
 		$ne->insert(0,$$row{name});
-		my $se = entryRow($if,"Size: ",2,1,undef,\$sv,\&myValidate);
-		my $ce = $if->BrowseEntry(-width=>5,-variable=>\$uv,-validate=>'focusout',-validatecommand =>\&myValidate);
+		our $se = entryRow($if,"Size: ",2,1,undef,\$sv,\&myValidate);
+		our $ce = $if->BrowseEntry(-width=>5,-variable=>\$uv,-validate=>'focusout',-validatecommand =>\&myValidate);
 		$ce->insert('end','oz');
 		$ce->insert('end','ml');
 		$ce->insert('end','cnt');
@@ -168,15 +183,16 @@ sub showPantryLoader {
 		$ce->insert('end','lb');
 		$ce->insert('end','L');
 		$ce->grid(-row=>2,-column=>3);
-		my $ql = $if->Label(-text=>"Qty: ");
+		our $ql = $if->Label(-text=>"Qty: ");
 		$ql->grid(-row=>1,-column=>3);
 		$if->Label(-text=>"/")->grid(-row=>1,-column=>5);
 		my $changed = 0;
-		my $qe = $if->Entry(-textvariable=>\$qty,-validate=>'focusout',-validatecommand=> \&myValidate, -width => 4, );
-		my $ke = $if->Entry(-textvariable=>\$kv,-validate=>'focusout',-validatecommand=> \&myValidate, -width => 4, );
+		our $qe = $if->Entry(-textvariable=>\$qty,-validate=>'focusout',-validatecommand=> \&myValidate, -width => 4, );
+		our $ke = $if->Entry(-textvariable=>\$kv,-validate=>'focusout',-validatecommand=> \&myValidate, -width => 4, );
 		$qe->grid(-row=>1,-column=>4);
 		$ke->grid(-row=>1,-column=>6);
 		$okb->grid(-row=>6,-column=>5);
+		our $ufb = UPC::makeUPCbutton($if,6,4,\$ut,\&formatUPCinfo,"Populate");
 	}
 	$ue->bind('<Key-Return>', sub { incrementUPC($ue); });
 	$ue->focus;

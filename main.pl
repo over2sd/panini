@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 use strict; use warnings;
 my $PROGRAMNAME = "Panini pantry system";
-my $version = "0.14a";
+my $version = "0.16a";
 my $cfn = "config.ini";
 my $debug = 9;
 my $dbn = 'pantry';
@@ -38,6 +38,7 @@ Sui::storeData('dbname',$dbn);
 require Common;
 require FIO;
 require FlexSQL;
+require UPC;
 require TGUI;
 require TGK;
 FIO::loadConf($cfn);

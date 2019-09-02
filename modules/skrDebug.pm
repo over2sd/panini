@@ -7,7 +7,9 @@ use Exporter;
 @EXPORT = qw( Dumper dump );
 
 sub dump {
-	my ($ref,$desc) = @_;
+	my ($ref,$desc,$showref) = @_;
+	my $desc2 = (defined $desc ? $desc : "Variable");
+	print "$desc2 is a " . ref($ref) . ".\n" if $showref;
 	print "$desc: " if defined $desc;
 	print Dumper $ref;
 }
