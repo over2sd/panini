@@ -34,7 +34,7 @@ sub updateEntry {
 	my $oldtext = $e->get;
 	$e->delete('0','end');
 	$e->insert('end',"$newtext");
-	print "Change " . ($e->validate ? "successful" : "failed");
+	print "Change " . ($e->validate ? "failed" : "successful") . ": $oldtext >> $newtext\n";
 	
 }
 print ".";

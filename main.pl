@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 use strict; use warnings;
 my $PROGRAMNAME = "Panini pantry system";
-my $version = "0.16a";
+my $version = "0.17a";
 my $cfn = "config.ini";
 my $debug = 9;
 my $dbn = 'pantry';
