@@ -1,5 +1,5 @@
 DROP TABLE IF EXISTS `items`;
-CREATE TABLE `items` ( `upc` varchar(32) NOT NULL, `name` varchar(128) DEFAULT "UNNAMED", `unit` varchar(5) DEFAULT "oz", `size` int(8) DEFAULT 1, `generic` varchar(10) DEFAULT "Grocery", PRIMARY KEY (`upc`) );
+CREATE TABLE `items` ( `upc` varchar(32) NOT NULL, `name` varchar(128) DEFAULT "UNNAMED", `unit` varchar(5) DEFAULT "oz", `size` int(8) DEFAULT 1, `keep` int(8) DEFAULT 0, `generic` varchar(10) DEFAULT "Grocery", PRIMARY KEY (`upc`) );
 DROP TABLE IF EXISTS `prices`;
 CREATE TABLE `prices` ( `upc` varchar(32) NOT NULL, `store` bigint(32) NOT NULL, `price` float NOT NULL, `date` datetime NOT NULL DEFAULT NOW );
 DROP TABLE IF EXISTS `stores`;

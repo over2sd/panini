@@ -28,6 +28,17 @@ sub TFresh {
 }
 print ".";
 
+
+sub updateEntry {
+	my ($e,$newtext) = @_;
+	my $oldtext = $e->get;
+	$e->delete('0','end');
+	$e->insert('end',"$newtext");
+	print "Change " . ($e->validate ? "failed" : "successful") . ": $oldtext >> $newtext\n";
+	
+}
+print ".";
+
 FIO::config("UI","GUI","tk"); # set UI type
 print ".";
 1;

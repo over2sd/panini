@@ -16,13 +16,14 @@ they're asking for.
 =cut
 
 my %data = (
-	poswt => 1.584,
-	negwt => 1.7,
 	disambiguations => {
 		tag => ["tag_(context1)","tag_(context2)"],
 		othertag => ["othertag_(context1)","othertag_(context2)"]
 	},
 	objectionablecontent => [],
+	minchanged => 1,
+	minindexed => 0,
+	minimums => {},
 );
 
 sub passData {
@@ -144,6 +145,7 @@ sub getDefaults {
 		['Main','tz',-6],
 		['Net','savethumbs',1],
 		['Net','thumbdir',"itn"],
+		['DB','lcgeneric',1],
 		['UI','gradient',"#F00,#F30,#F60,#F90,#FC0,#FF0,#CF0,#9F0,#6F0,#3F0,#0F0,#0F3,#0F6,#0F9,#0FC,#0FF,#0CF,#09F,#06F,#03F,#00F,#30F,#60F,#90F,#C0F,#F0F,#F0C,#F09,#F06,#F03,#EEF,#DDE,#CCD,#BBC,#AAB,#99A,#889,#778,#667,#556,#445,#334,#223,#112,#001"],
 	);
 }
