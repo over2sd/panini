@@ -14,10 +14,10 @@ flush STDOUT;
 use Getopt::Long;
 
 GetOptions(
-	'data|d=s' => \$dbn,
-	'host|h=s' => \$dbs,
-	'conf|c=s' => \$cfn,
-	'verbose|v' => \$debug,
+	'data|d=s' => \$dbn, # database name
+	'host|h=s' => \$dbs, # DB host
+	'conf|c=s' => \$cfn, # configuration file
+	'verbose|v' => \$debug, # debug verbosity (default 0)
 );
 
 sub howVerbose {

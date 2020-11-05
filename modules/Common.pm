@@ -766,12 +766,16 @@ my ($in,$zealous) = @_;
 print ".";
 
 sub pad { # recipe from perlfaq (READ" pad TEXT to LENGTH with CHAR
-	my ($text,$pad_len,$filler,$after) = @_;
-	# TODO: divide pad_len by length of filler for pad patterns instead of characters.
-	unless (defined $after and $after) {
-		substr( $text, 0, 0 ) = $filler x ( $pad_len - length( $text ) ); # maybe pl - l(t) / l(f)?
+	my ($text,$pad_len,$filler,$after) = @_; # pads TEXT to PAD_LENgth with FILLER pattern (filler goes after text unless AFTER is true)
+	my $start = $pad_len - length($text); # see how much of desired length is already covered.
+	return $text if ($start <= 0); # return text unchanged if long enough already.
+	my $reps = $pad_len / length($filler) + 1; # How many repetitions could we have? Lets you use patterns instead of single characters.
+	$filler = $filler x $reps; # repeat filler pattern to desired length
+	$filler = substr($filler,0,$start);
+	unless (defined $after and $after) { # put TEXT AFTER FILLER?
+		substr( $text, 0, 0 ) = $filler;
 	} else {
-		$text .= $filler x ( $pad_len - length( $text ) );
+		$text .= $filler;
 	}
 	return $text;
 }

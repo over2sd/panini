@@ -72,7 +72,7 @@ sub formatUPCinfo {
 	print join(',',keys %$info);
 	print "We are given $info, $ne, $se, $ge, $ce...";
 	#title weight size offers[title] description images
-#####TODO:	# try to regex size from title, both removing it and parsing it into the size field
+#####DONE?:	# try to regex size from title, both removing it and parsing it into the size field
 	print "Name: $$info{title}\n";
 	$$info{title} =~ s/,? ?(\d*\.?\d+) ?((fl\.? oz|fl\.?oz|foz|oz|lb|\#|ml|L))\.?//i;
 	my $size = $1;
@@ -141,7 +141,7 @@ sub showPantryLoader {
 	# bind enter here to a function that either adds one to the onhand,
 	#	or if not found, pulls open the description entries below for saving.
 	sub incrementUPC {
-		my $ue = shift;
+		my ($ue,$if) = @_;
 		my $newkeep = 0;
 		my $ut = $ue->get();
 		if ($ut eq "" or not defined $ue) {
@@ -161,7 +161,7 @@ sub showPantryLoader {
 		print "Err: $err\n";
 		if (defined $row) { # get updated qty, because we just changed it.
 			my $st = "SELECT * FROM counts WHERE upc=?;";
-			my $row = FlexSQL::doQuery(6,$dbh,$st,$ut);
+			$row = FlexSQL::doQuery(6,$dbh,$st,$ut);
 		}
 		if ($speedy) {
 			$ue->delete(0, 'end'); # clear the UPC box if we're going fast.
@@ -225,18 +225,19 @@ sub showPantryLoader {
 		$okb->grid(-row=>6,-column=>5);
 		our $ufb = UPC::makeUPCbutton($if,6,4,\$ut,\&formatInfo,"Populate");
 	}
-	$ue->bind('<Key-Return>', sub { incrementUPC($ue); });
+	$ue->bind('<Key-Return>', sub { incrementUPC($ue,$if); });
 	$ue->focus;
 }
 print ".";
 
 ### SCreate buttons for sidebar that lead to each function
 sub showButtonPanel {
-	my ($parent,) = @_;
+	my ($parent,$dbh) = @_;
 	my $bf = $parent->Frame(-relief=>'groove', -width => 10);
 	$bf->Label(-text=>"Tasks:",-width=>7)->pack();
 	my %butpro = ( -fill=>'x', -padx=>2, -pady=>2);
-#	my $loadb = $bf->Button(-text=>"Store",-command=>sub { showPantryLoader($parent); })->pack(%butpro); # disabled until I can figure out why it fails after loading with button
+#	my $loadb = $bf->Button(-text=>"Store",-command=>sub { populateMainWin($dbh,$parent,1); })->pack(%butpro); # disabled until I can figure out why it fails after loading with button
+	my $loadb = $bf->Button(-text=>"Store",-command=>sub { showPantryLoader($parent); })->pack(%butpro); # disabled until I can figure out why it fails after loading with button
 	my $editb = $bf->Button(-text=>"Edit",-command=>sub { showItemDB($parent); })->pack(%butpro);
 	my $contb = $bf->Button(-text=>"Cook",-command=>sub { showPantryContents($parent); })->pack(%butpro);
 	my $listb = $bf->Button(-text=>"Buy",-command=>sub { showShoppingList($parent); })->pack(%butpro);
@@ -249,10 +250,9 @@ print ".";
 
 sub setQty {
 	my ($upc,$qty) = @_;
-	my $st = "UPDATE counts SET qty=? WHERE upc=?;";
-	my $dbh = Sui::passData('db');
 	return -1 if ($qty < 0); # prevent negative onhands
-	my $err = FlexSQL::doQuery(2,$dbh,$st,$qty,$upc);
+	my $st = "UPDATE counts SET qty=? WHERE upc=?;";
+	my $err = FlexSQL::doQuery(2, Sui::passData('db') ,$st, $qty, $upc);
 	print "Err: $err\n";
 	return $err;
 }
@@ -273,13 +273,13 @@ sub showPantryContents { # For cooking/reducing inventory
 	my $tah = { -justify => 'left', -wraplength => $pxwidth };
 	my $res = FlexSQL::doQuery(3,$dbh,$st,'upc'); # Get items in pantry
 	my @order = sort {$$res{$a}{generic} cmp $$res{$b}{generic}} keys %$res;
-	listRow($sf,"Qty",3,1,$tah,"Of","Item","Product","UPC");
+	listRow($sf,"Qty",3,1,$tah,"Item","Product","UPC");
 	my $row = 4;
 	foreach my $i (@order) {
 		my $qty = @{ FlexSQL::doQuery(7,$dbh,$qst,$$res{$i}{upc}) }[0];
-		my $q = listRow($sf,$qty,$row,1,$tah,"$$res{$i}{keep}","$$res{$i}{generic}","$$res{$i}{name}","$$res{$i}{upc}");
-		my $usebutton = $sf->Button(-text => "-1",-command => sub { $qty--; setQty($$res{$i}{upc},$qty); $q->configure(-text => "$qty"); }, -padx => 3)->grid(-row => $row, -column => 6);
-		my $undobutton = $sf->Button(-text => "+1",-command => sub { $qty++; setQty($$res{$i}{upc},$qty); $q->configure(-text => "$qty"); }, -padx => 3)->grid(-row => $row, -column => 7);
+		my $q = listRow($sf,"$qty/$$res{$i}{keep}",$row,1,$tah,"$$res{$i}{generic}","$$res{$i}{name}","$$res{$i}{upc}");
+		my $usebutton = $sf->Button(-text => "-1",-command => sub { $qty--; setQty($$res{$i}{upc},$qty); $q->configure(-text => "$qty/$$res{$i}{keep}"); }, -padx => 3)->grid(-row => $row, -column => 6);
+		my $undobutton = $sf->Button(-text => "+1",-command => sub { $qty++; setQty($$res{$i}{upc},$qty); $q->configure(-text => "$qty/$$res{$i}{keep}"); }, -padx => 3)->grid(-row => $row, -column => 7);
 		$row++;
 	}
 }
@@ -389,20 +389,24 @@ sub showStoreEntry {
 
 sub populateMainWin {
 	my ($dbh,$win,$reset) = @_;
-	my $w = $win->width * 0.9;
-	my $h = $win->height * 0.9;
 	my $frameargs = {-width => 600, -height => 440};
-	Sui::storeData('frameargs',$frameargs);
+	if ($reset) {
+		exists $win->{rtpan} and $win->{rtpan}->destroy();
+	} else {
+		my $w = $win->width * 0.9;
+		my $h = $win->height * 0.9;
+		Sui::storeData('frameargs',$frameargs);
+		unless (FlexSQL::table_exists($dbh,"items") && FlexSQL::table_exists($dbh,"stores")) {
+			print "-=-";
+			FlexSQL::makeTables($dbh);
+		}
+		Sui::storeData('db',$dbh);
+	}
 	my $of = $win->Frame(-relief=>"raised", %$frameargs);
 #	$of->configure(-scrollbars => 'e');
 	$win->{rtpan} = $of;
 	$of->grid(-row=>1,-column=>2,-columnspan=>7,-sticky=>"nse");
-	unless (FlexSQL::table_exists($dbh,"items") && FlexSQL::table_exists($dbh,"stores")) {
-		print "-=-";
-		FlexSQL::makeTables($dbh);
-	}
-	Sui::storeData('db',$dbh);
-	showButtonPanel($win);
+	showButtonPanel($win,$dbh);
 	showPantryLoader($win);
 }
 print ".";
@@ -473,8 +477,6 @@ sub showItemDB {
 		$tf->focusPrev();
 	}
 
-	# bind enter here to a function that either adds one to the onhand,
-	#	or if not found, pulls open the description entries below for saving.
 	sub editUPC {
 		my $ue = shift;
 		my $newkeep = 0;
@@ -544,6 +546,8 @@ sub showItemDB {
 		$okb->grid(-row=>6,-column=>5);
 		our $ufb = UPC::makeUPCbutton($if,6,4,\$ut,\&formatInfo,"Populate");
 	}
+	# bind enter here to a function that either adds one to the onhand,
+	#	or if not found, pulls open the description entries below for saving.
 	$ue->bind('<Key-Return>', sub { editUPC($ue); });
 	$ue->focus;
 }
