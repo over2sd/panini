@@ -134,7 +134,7 @@ sub showPantryLoader {
 			print "Records changed: $err\n";
 			return unless ($err);
 			my $lq = $tf->Label(-text=>"Quantity updated!");
-			$lq->grid(-row=>1,-column=>1);
+			$lq->grid(-row=>10,-column=>1);
 		}
 		$tf->focusPrev();
 	}
@@ -143,7 +143,7 @@ sub showPantryLoader {
 	#	or if not found, pulls open the description entries below for saving.
 	sub incrementUPC {
 		my ($ue,$if) = @_;
-		my $newkeep = 0;
+		my ($newkeep,$defname,$defgen) = (0,"UNNAMED","Grocery");
 		my $ut = $ue->get();
 		if ($ut eq "" or not defined $ue) {
 			print "Empty UPC!\n";
@@ -176,25 +176,31 @@ sub showPantryLoader {
 		$row = FlexSQL::doQuery(6,$dbh,$st,$ut);
 		skrDebug::dump($row);
 		$$row{update} = (defined $row ? 1 : 0);
-		$$row{name} = "UNNAMED" unless defined $$row{name};
+		$$row{name} = "$defname" unless defined $$row{name};
 		$$row{qty} = $qty;
-		my ($nv,$sv,$uv,$gv,$kv) = (undef,1,"oz","Grocery",0);
+		my ($nv,$sv,$uv,$gv,$kv) = (undef,1,"oz","$defgen",0);
 		$sv = $$row{size} if defined $$row{size};
 		$uv = $$row{unit} if defined $$row{unit};
 		$gv = $$row{generic} if defined $$row{generic};
 		if (defined $$row{keep} and $$row{keep} ne $kv) { $newkeep = 1; }
 		$kv = $$row{keep} if defined $$row{keep};
-		our $okb;
+		our $okb = $if->Button(-text=> ($UPConButton ? "Save $ut" : "Save"), -state => 'disabled',)->grid(-row=>6,-column=>5);
 		our $ne = entryRow($if,"Name: ",1,1,undef,\$nv,\&myValidate);
+		our $qe = $if->Entry(-textvariable=>\$qty,-validate=>'focusout',-validatecommand=> \&myValidate, -width => 4, );
+		our $ke = $if->Entry(-textvariable=>\$kv,-validate=>'focusout',-validatecommand=> \&myValidate, -width => 4, );
+		our $se = entryRow($if,"Size: ",2,1,undef,\$sv,\&myValidate);
+		our $ce = $if->BrowseEntry(-width=>5,-variable=>\$uv,-validate=>'focusout',-validatecommand =>\&myValidate);
 		our $ge = entryRow($if,"Item Equivalence: ",4,1,undef,\$gv,\&myValidate);
-		$okb = $if->Button(-text=> ($UPConButton ? "Save $ut" : "Save"), -state => 'disabled', -command=> sub {
-			$ne->focus if ($nv eq "UNNAMED");
-			$ge->focus if ($gv eq "Grocery");
+		$okb->configure(-command=> sub {
+			$ne->focus if ($nv eq "$defname");
+			$ge->focus if ($gv eq "$defgen");
+			return if ($nv eq "$defname" or $gv eq "$defgen");
 			$ue->delete(0, 'end');
 			$newkeep and Sui::storeData('minchanged',time());
 			saveItemInfo($okb,$dbh,$ut,$nv,$sv,$uv,$qty,$gv,$kv,$row,$if);
 			$ue->focus();
 		});
+		our $ufb = UPC::makeUPCbutton($if,6,4,\$ut,\&formatInfo,"Populate");
 		sub myValidate {
 			my ($pv,$av,$cv) = @_;
 			return 0 if ($pv eq $cv); # no change made
@@ -203,8 +209,8 @@ sub showPantryLoader {
 		}
 		$ne->delete(0,'end');
 		$ne->insert(0,$$row{name});
-		our $se = entryRow($if,"Size: ",2,1,undef,\$sv,\&myValidate);
-		our $ce = $if->BrowseEntry(-width=>5,-variable=>\$uv,-validate=>'focusout',-validatecommand =>\&myValidate);
+		our $ql = $if->Label(-text=>"Qty: ");
+		$if->Label(-text=>"/")->grid(-row=>1,-column=>5);
 		sub formatInfo { return formatUPCinfo($_[0],$ne,$se,$ge,$ce,$if); }
 		$ce->insert('end','oz');
 		$ce->insert('end','ml');
@@ -215,16 +221,11 @@ sub showPantryLoader {
 		$ce->insert('end','lb');
 		$ce->insert('end','L');
 		$ce->grid(-row=>2,-column=>3);
-		our $ql = $if->Label(-text=>"Qty: ");
 		$ql->grid(-row=>1,-column=>3);
-		$if->Label(-text=>"/")->grid(-row=>1,-column=>5);
-		my $changed = 0;
-		our $qe = $if->Entry(-textvariable=>\$qty,-validate=>'focusout',-validatecommand=> \&myValidate, -width => 4, );
-		our $ke = $if->Entry(-textvariable=>\$kv,-validate=>'focusout',-validatecommand=> \&myValidate, -width => 4, );
 		$qe->grid(-row=>1,-column=>4);
 		$ke->grid(-row=>1,-column=>6);
-		$okb->grid(-row=>6,-column=>5);
-		our $ufb = UPC::makeUPCbutton($if,6,4,\$ut,\&formatInfo,"Populate");
+		my $changed = 0;
+		$ne->focus();
 	}
 	$ue->bind('<Key-Return>', sub { incrementUPC($ue,$if); });
 	$ue->focus;
@@ -243,23 +244,24 @@ sub showButtonPanel {
 	my $planb = $bf->Button(-text=>"Plan",-command=>sub { showRecipeProposal($parent); })->pack(%butpro);
 	my $listb = $bf->Button(-text=>"Buy",-command=>sub { showShoppingList($parent); })->pack(%butpro);
 	my $contb = $bf->Button(-text=>"Cook",-command=>sub { showPantryContents($parent); })->pack(%butpro);
-	my $parent->{bnames} = ["Cook","Edit","Buy","Store","Plan","Price"];
-	my $parent->{bgroup} = [$contb,$editb,$listb,$loadb,$planb,$prodb];
-
-	$bf->grid(-row=>1,-column=>1,-sticky=>"nws");
+	Sui::storeData('bnames',["Cook","Edit","Buy","Store","Plan","Price"]);
+	Sui::storeData('bgroup',[$contb,$editb,$listb,$loadb,$planb,$prodb]);
+	$bf->grid(-row=>1,-column=>1,-sticky=>"nw");
 }
 print ".";
 
 sub selectButton { # TODO: Figure out why this doesn't work, and fix it.
 	my ($parent,$active) = @_;
-	my @bnames = @{ $parent->{bnames} };
+	#print "sB $active ...";
+	my @bnames = @{ Sui::passData('bnames') };
+	my @bgroup = @{ Sui::passData('bgroup') };
 	foreach my $i (0..$#bnames) {
 		if ($active eq $bnames[$i]) {
-			print "Selecting $active!\n";
-			$parent->{bgroup}[$i]->configure(-state => 'disabled');
+			Common::infMes("Selecting $active!") if (main::howVerbose() > 5);
+			$bgroup[$i]->configure(-state => 'disabled');
 		} else {
-			print "Enabling $bnames[$i]!\n" if ($parent->{bgroup}[i]->configure(-state) eq "disabled");
-			$parent->{bgroup}[$i]->configure(-state => 'normal');
+			print "Enabling $bnames[$i]!\n" if ($bgroup[i]->configure(-state) eq "disabled");
+			$bgroup[$i]->configure(-state => 'normal');
 		}
 	}
 }
@@ -282,20 +284,22 @@ sub showPantryContents { # For cooking/reducing inventory
 	my $of = $parent->{rtpan};
 	my $if = makeMyFrame($of,"Contents of Pantry");
 	my %args = %{ Sui::passData('frameargs') };
-	$args{-width} *= 0.9;
+	$args{-width} *= 0.95;
 	my $sf = $if->Scrolled('Frame', -scrollbars => 'osoe', %args)->pack(-fill => 'both',);
 	$sf->Label(-text => " ", -width => 80, -height => 2)->grid(-row => 2, -column => 1, -columnspan => 7);
-	my $st = "SELECT * FROM items;";
+	my $st = "SELECT * FROM items ORDER BY generic ASC;";
 	my $qst = "SELECT qty FROM counts WHERE upc=?;";
 	my $dbh = Sui::passData('db');
 	my $tah = { -justify => 'left', -wraplength => $pxwidth };
 	my $res = FlexSQL::doQuery(3,$dbh,$st,'upc'); # Get items in pantry
 	my @order = sort {$$res{$a}{generic} cmp $$res{$b}{generic}} keys %$res;
-	listRow($sf,"Qty",3,1,$tah,"Item","Product","UPC");
+	my $showitem = (Sui::passData('showcookgeneric') or 0);
+	listRow($sf,"Qty",3,1,$tah,($showitem ? "Item" : ""),"Product","UPC");
+	$sf->Label(-text => "Change")->grid(-row => 3, -column => 6, -columnspan => 2);
 	my $row = 4;
 	foreach my $i (@order) {
 		my $qty = @{ FlexSQL::doQuery(7,$dbh,$qst,$$res{$i}{upc}) }[0];
-		my $q = listRow($sf,"$qty/$$res{$i}{keep}",$row,1,$tah,"$$res{$i}{generic}","$$res{$i}{name}","$$res{$i}{upc}");
+		my $q = listRow($sf,"$qty/$$res{$i}{keep}",$row,1,$tah,($showitem ? "$$res{$i}{generic}" : ""),"$$res{$i}{name}","$$res{$i}{upc}");
 		my $usebutton = $sf->Button(-text => "-1",-command => sub { $qty--; setQty($$res{$i}{upc},$qty); $q->configure(-text => "$qty/$$res{$i}{keep}"); }, -padx => 3)->grid(-row => $row, -column => 6);
 		my $undobutton = $sf->Button(-text => "+1",-command => sub { $qty++; setQty($$res{$i}{upc},$qty); $q->configure(-text => "$qty/$$res{$i}{keep}"); }, -padx => 3)->grid(-row => $row, -column => 7);
 		$row++;
@@ -356,12 +360,11 @@ sub showProductInfo { # for pricing products in the store
 		$r = 1; $c = 1;
 		my $st = "SELECT store,price,date FROM prices WHERE upc=? ORDER BY date DESC LIMIT 25;";
 		my $list = FlexSQL::doQuery(4,FlexSQL::getDB(),$st,$cv);
-		skrDebug::dump($list);
 		$target->Label(-text => "Store")->grid(-row => $r, -column => 1);
 		$target->Label(-text => "Price")->grid(-row => $r, -column => 2);
 		$target->Label(-text => "Date")->grid(-row => $r, -column => 3);
 		$target->Label(-text => "")->grid(-row => $r, -column => 4);
-		foreach my $listrow (@$list) {
+		foreach my $listrow (reverse @$list) {
 			makePriceRow($target,@$listrow);
 		}
 	}
@@ -457,9 +460,9 @@ print ".";
 
 sub getDeficits {
 	my ($kvs,) = @_;
-	my @generics = keys %$kvs;
+	my @generics = sort keys %$kvs;
 	my @lows;
-	my $pst = "SELECT upc,name FROM items WHERE generic=?;";
+	my $pst = "SELECT upc,name FROM items WHERE generic=? ORDER BY name;";
 	my $cst = "SELECT qty FROM counts WHERE upc=?;";
 	my $dbh = Sui::passData('db');
 	my $wiggle = (FIO::config('Rules','beloworat') ? 1 : 0);
@@ -496,6 +499,8 @@ sub listToBuys {
 	$parent->Label(-text => "Buy")->grid(-row => $row, -column => 6);
 	$row++;
 	foreach my $i (@list) {
+
+#skrDebug::dump($i,"List");
 		my ($gen,$upc,$name,$qty,$desired) = @$i;
 		unless ($gen eq $curhed) {
 			$curhed = $gen;
@@ -522,6 +527,7 @@ sub showShoppingList { # For buying items that are getting low
 	my $header = $of->Label(-text => "Shopping List")->grid(-row => 1, -column => 2);
 	my @list = getDeficits(getMinimums());
 	my $if = $of->Frame()->grid(-row => 1, -column => 1, -columnspan => 7);
+	$args{-width} *= 0.95;
 	my $sf = $if->Scrolled('Frame', -scrollbars => 'osoe', %args)->pack(-fill => 'both',);
 	listToBuys($sf,@list);
 	showAddMinButton($of,3); # add a minimum for items not yet in DB for keeping on hand.
@@ -622,7 +628,7 @@ sub showItemDB {
 		# update the progress bar
 		# go to next unnamed item
 	#}
-	$of->Button( -text => "Review Autodata", -command => sub { print "\nWhen this is coded, it'll try to pull item info from a UPC database. For now, enjoy the pretty status button.\n"; $if->Button(-text => "Not yet coded")->pack(-anchor => 'w'); })->grid(-row => 2, -column => 5);
+	$of->Button( -text => "Review Autodata", -command => sub { print "\nWhen this is coded, it'll try to pull item info from a UPC database. For now, enjoy the pretty status button.\n"; $if->Button(-text => "Not yet coded")->pack(-anchor => 'w'); })->grid(-row => 2, -column => 4);
 	# grab autodata generic LIKE "Auto%"
 	# create an inner frame with a scrollbar
 	# create a header row
@@ -691,10 +697,14 @@ sub showItemDB {
 		$gv = $$row{generic} if defined $$row{generic};
 		if (defined $$row{keep} and $$row{keep} ne $kv) { $newkeep = 1; }
 		$kv = $$row{keep} if defined $$row{keep};
-		our $okb;
+		our $okb = $if->Button(-text=> ($UPConButton ? "Save $ut" : "Save"), -state => 'disabled',)->grid(-row=>6,-column=>5);
 		our $ne = entryRow($if,"Name: ",1,1,undef,\$nv,\&myValidate);
+		our $qe = $if->Entry(-textvariable=>\$qty,-validate=>'focusout',-validatecommand=> \&myValidate, -width => 4, );
+		our $ke = $if->Entry(-textvariable=>\$kv,-validate=>'focusout',-validatecommand=> \&myValidate, -width => 4, );
+		our $se = entryRow($if,"Size: ",2,1,undef,\$sv,\&myValidate);
+		our $ce = $if->BrowseEntry(-width=>5,-variable=>\$uv,-validate=>'focusout',-validatecommand =>\&myValidate);
 		our $ge = entryRow($if,"Item Equivalence: ",4,1,undef,\$gv,\&myValidate);
-		$okb = $if->Button(-text=> ($UPConButton ? "Save $ut" : "Save"), -state => 'disabled', -command=> sub {
+		$okb->configure(-command=> sub {
 			$ne->focus if ($nv eq "UNNAMED");
 			$ge->focus if ($gv eq "Grocery");
 			$ue->delete(0, 'end');
@@ -710,8 +720,6 @@ sub showItemDB {
 		}
 		$ne->delete(0,'end');
 		$ne->insert(0,$$row{name});
-		our $se = entryRow($if,"Size: ",2,1,undef,\$sv,\&myValidate);
-		our $ce = $if->BrowseEntry(-width=>5,-variable=>\$uv,-validate=>'focusout',-validatecommand =>\&myValidate);
 		sub formatInfo { return formatUPCinfo($_[0],$ne,$se,$ge,$ce,$if); }
 		$ce->insert('end','oz');
 		$ce->insert('end','ml');
@@ -726,12 +734,10 @@ sub showItemDB {
 		$ql->grid(-row=>1,-column=>3);
 		$if->Label(-text=>"/")->grid(-row=>1,-column=>5);
 		my $changed = 0;
-		our $qe = $if->Entry(-textvariable=>\$qty,-validate=>'focusout',-validatecommand=> \&myValidate, -width => 4, );
-		our $ke = $if->Entry(-textvariable=>\$kv,-validate=>'focusout',-validatecommand=> \&myValidate, -width => 4, );
 		$qe->grid(-row=>1,-column=>4);
 		$ke->grid(-row=>1,-column=>6);
-		$okb->grid(-row=>6,-column=>5);
 		our $ufb = UPC::makeUPCbutton($if,6,4,\$ut,\&formatInfo,"Populate");
+		$ne->focus();
 	}
 	# bind enter here to a function that either adds one to the onhand,
 	#	or if not found, pulls open the description entries below for saving.
@@ -747,6 +753,27 @@ sub showRecipeProposal {
 	emptyFrame($of);
 	selectButton($parent,"Plan");
 	my $header = $of->Label(-text => "Recipe Worksheet")->grid(-row => 1, -column => 2);
+	our $rframe = $of->Scrolled('Frame',-scrollbars=>'osoe')->grid(-row => 2,-column => 1,-columnspan => 5);
+	our (@rows,@costs);
+	my $buttonrow = $of->Frame()->grid(-row => 3,-column => 1,-columnspan => 5);
+	my $costl = $buttonrow->Label(-text => "Cost:")->grid(-row=>1,-column=>1);
+	my $costo = $buttonrow->Label(-text => "\$0.00")->grid(-row=>1,-column=>2);
+	my $rowindex = 0;
+	my $addbutton = $buttonrow->Button(-text=>"Add Ingredient",-command=>sub { print "TODO: code these (add)"; })->grid(-row=>1,-column=>3);
+	my $buybutton = $buttonrow->Button(-text=>"Buy Ingredients",-command=>sub { print "TODO: code these (buy)"; })->grid(-row=>1,-column=>4);
+	my $recsavbut = $buttonrow->Button(-text=>"Save",-command=>sub { print "TODO: code these (save)"; })->grid(-row=>1,-column=>5);
+
+	sub makeIngredient {
+		my ($upc,$t,$r) = @_;
+		push(@rows,$t->Frame()->pack(-fill=>"x"));
+		push(@costs,0.00);
+		$rows[$r]->Label(-text=>"$data[0]")->grid(-row=>1,-column=>1); # Name
+		$rows[$r]->Entry(-text=>"0")->grid(-row=>1,-column=>2); # Qty
+		$rows[$r]->Label(-text=>"$data[1]")->grid(-row=>1,-column=>3); # Units
+		$rows[$r]->Label(-text=>"$data[2]")->grid(-row=>1,-column=>4); # Cost
+		$rows[$r]->Button(-text=>" - ", -command => sub { $costs[$r] = 0.00; $rows[$r]->destroy(); })->grid(-row=>1,-column=>5); # Remove
+	}
+
 }
 print ".";
 

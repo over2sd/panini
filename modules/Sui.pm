@@ -87,6 +87,7 @@ sub getOpts {
 		'039' => ['x',"Header background color code: ",'headerbg',"#CCCCFF"],
 		'03a' => ['c',"Show count in section tables",'linenos'],
 		'03d' => ['x',"Background for list tables",'listbg',"#EEF"],
+		'03e' => ['c',"Show generic item in Cook tab",'showcookgeneric'],
 		'043' => ['x',"Background for letter buttons",'letterbg',"#CFC"],
 		'040' => ['c',"Show a horizontal rule between rows",'rulesep'],
 		'041' => ['x',"Rule color: ",'rulecolor',"#003"],

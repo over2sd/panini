@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 use strict; use warnings;
 my $PROGRAMNAME = "Panini pantry system";
-my $version = "0.18a";
+my $version = "0.19a";
 my $cfn = "config.ini";
 my $debug = 9;
 my $dbn = 'pantry';
@@ -44,7 +44,7 @@ require TGK;
 FIO::loadConf($cfn);
 FIO::config('Debug','v',$debug);
 
-my $gui = TGK::createMainWin($PROGRAMNAME,$version,630,460);
+my $gui = TGK::createMainWin($PROGRAMNAME,$version,670,490);
 my ($dbh,$error) = FlexSQL::getDB('L') or undef;
 
 
