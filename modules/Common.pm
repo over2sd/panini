@@ -751,6 +751,17 @@ sub today {
 }
 print ".";
 
+sub now {
+	my ($h,$m,$s) = (localtime)[2,1,0];
+	return sprintf('%02d:%02d:%02d:00', $h, $m, $s);
+}
+print ".";
+
+sub datenow {
+	return today() . " " . now();
+}
+print ".";
+
 # new for castagogue
 =item RSSclean()
 	Remove troublesome characters from CDATA/PCDATA ($in).

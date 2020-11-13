@@ -16,7 +16,7 @@ print ".";
 ### Create a label and an entry in a row, then return the entry
 sub entryRow {
 	my ($parent,$name,$r,$c,$s,$tv,$valcmd) = @_;
-print "Debug: $parent ... " . ref($parent) . " ...\n";
+#print "Debug: $parent ... " . ref($parent) . " ...\n";
 	my %args = ( -row => $r, -column => $c );
 	unless (defined $parent) {
 		print Common::lineNo();
@@ -61,7 +61,7 @@ sub makeMyFrame {
 	my $header = $of->Label(-text => "$heading")->grid(-row => 1, -column => 1);
 	my %args = %{ Sui::passData('frameargs') };
 	my $if = $of->Frame(%args);
-	$if->grid(-row=>3,-column=>1,-columnspan=>4);
+	$if->grid(-row=>3,-column=>1,-columnspan=>4, -sticky => 'nse');
 	return $if;
 }
 print ".";
@@ -105,6 +105,7 @@ sub showPantryLoader {
 	my $name = "";
 	my $size = 0;
 	my $unit = "oz";
+	selectButton($parent,"Store");
 	my $if = makeMyFrame($of,"Enter new pantry contents");
 	my $ue = entryRow($of,"UPC: ",2,1);
 	our $speedy = 0; $of->Checkbutton( -text => "Fast Entry", -variable => \$speedy, -command => sub { print "\nPressed: $speedy\n"; })->grid(-row => 2, -column => 3);
@@ -236,15 +237,31 @@ sub showButtonPanel {
 	my $bf = $parent->Frame(-relief=>'groove', -width => 10);
 	$bf->Label(-text=>"Tasks:",-width=>7)->pack();
 	my %butpro = ( -fill=>'x', -padx=>2, -pady=>2);
-#	my $loadb = $bf->Button(-text=>"Store",-command=>sub { populateMainWin($dbh,$parent,1); })->pack(%butpro); # disabled until I can figure out why it fails after loading with button
-	my $loadb = $bf->Button(-text=>"Store",-command=>sub { showPantryLoader($parent); })->pack(%butpro); # disabled until I can figure out why it fails after loading with button
+	my $loadb = $bf->Button(-text=>"Store",-command=>sub { showPantryLoader($parent); })->pack(%butpro);
 	my $editb = $bf->Button(-text=>"Edit",-command=>sub { showItemDB($parent); })->pack(%butpro);
-	my $contb = $bf->Button(-text=>"Cook",-command=>sub { showPantryContents($parent); })->pack(%butpro);
-	my $listb = $bf->Button(-text=>"Buy",-command=>sub { showShoppingList($parent); })->pack(%butpro);
 	my $prodb = $bf->Button(-text=>"Price",-command=>sub { showProductInfo($parent); })->pack(%butpro);
-	
-	
+	my $planb = $bf->Button(-text=>"Plan",-command=>sub { showRecipeProposal($parent); })->pack(%butpro);
+	my $listb = $bf->Button(-text=>"Buy",-command=>sub { showShoppingList($parent); })->pack(%butpro);
+	my $contb = $bf->Button(-text=>"Cook",-command=>sub { showPantryContents($parent); })->pack(%butpro);
+	my $parent->{bnames} = ["Cook","Edit","Buy","Store","Plan","Price"];
+	my $parent->{bgroup} = [$contb,$editb,$listb,$loadb,$planb,$prodb];
+
 	$bf->grid(-row=>1,-column=>1,-sticky=>"nws");
+}
+print ".";
+
+sub selectButton { # TODO: Figure out why this doesn't work, and fix it.
+	my ($parent,$active) = @_;
+	my @bnames = @{ $parent->{bnames} };
+	foreach my $i (0..$#bnames) {
+		if ($active eq $bnames[$i]) {
+			print "Selecting $active!\n";
+			$parent->{bgroup}[$i]->configure(-state => 'disabled');
+		} else {
+			print "Enabling $bnames[$i]!\n" if ($parent->{bgroup}[i]->configure(-state) eq "disabled");
+			$parent->{bgroup}[$i]->configure(-state => 'normal');
+		}
+	}
 }
 print ".";
 
@@ -260,6 +277,7 @@ print ".";
 
 sub showPantryContents { # For cooking/reducing inventory
 	my ($parent,) = @_;
+	selectButton($parent,"Cook");
 	my $pxwidth = (FIO::config('UI','maxcolw') or 100);
 	my $of = $parent->{rtpan};
 	my $if = makeMyFrame($of,"Contents of Pantry");
@@ -289,10 +307,135 @@ sub showProductInfo { # for pricing products in the store
 	my ($parent,) = @_;
 	my $of = $parent->{rtpan};
 	emptyFrame($of);
+	selectButton($parent,"Price");
 	my $if = makeMyFrame($of,"Pricing Tool");
-
+	my ($r,$c) = (1,1);
+	my %args = ( -row => $r, -column => $c );
+	unless (defined $parent) {
+		print Common::lineNo();
+	}
+	my $si = (Sui::passData('storeID') or 1);
+	my ($uv,$pv);
+	our ($dv,$okb);
+	$if->Label(-text=>"Store: ")->grid( -row => 2, -column => 1 );
+	our $de = $if->Entry(-textvariable => \$dv)->grid(-row => 2, -column => 5);
+	my $sn = $if->Label(-text=>"Unnamed Store")->grid( -row => 2, -column => 3);
+	my $pnl = $if->Label(-text => "Unknown Product")->grid(-row => 3,-column => 3, -columnspan => 2);
+	my $psw = $if->Scrolled('Frame', -scrollbars => 'ose', -height => 300)->grid(-sticky => 'ew', -row => 4, -column => 1, -columnspan => 5);
+	my $ptable = $psw->Frame()->pack(-fill => 'both');
+	my $se = $if->Entry(-textvariable=> \$si)->grid( -row => 2, -column => 2 );
+	$dv = Common::datenow();
+	$sn->configure(-text => getStore($si));
+	# text, characters changed, previous text, position, operation
+	$se->configure(-validate => 'all', -validatecommand => sub {
+		my ($nt,$ct,$ot,$pos,$op) = @_;
+		return 0 if($nt eq $ot);
+		my $nam = getStoreNames($nt);
+		$sn->configure(-text => $nam);
+		return 1; });
+	$sb = $if->Button(-text => "Change/Add", -command => sub { showStoreEntry($if,$se); } )->grid( -row => 2, -column => 4); # show a button to change/add the store
+	$ue = entryRow($if,"UPC:",3,1,undef,\$uv,sub { getProdData($ptable,$pnl,$ue->get()); }); # show a UPC entry
+	my $pe = entryRow($if,"Price:",10,1,2,\$pv,\&allowSave);
+	$okb = $if->Button(-text=> "Save Price", -state => 'disabled', -command=> sub {
+		savePriceInfo($okb,$dbh,$ptable,$se->get(),$uv,$dv,$pv,$ue);
+		$ue->delete(0, 'end');
+		$ue->focus();
+		Sui::storeData('storeID',$si);
+		$dv = Common::datenow();
+	})->grid( -row => 10, -column => 5);
+	$ue->configure(-validate => 'focusout');
+	$pe->configure(-validate => 'all');
+	$ue->bind('<Key-Return>', sub { getProdData($ptable,$pnl,$uv); }); # bind return on entry to a function that adds a table of price information and an entry where you can enter the price
+	# bind return on the price field to the price update function
+	sub getProdData {
+		my ($target,$pl,$cv) = @_;
+#		print "$pv/$av/$cv]";
+#		return 0 if ($pv eq $cv); # no change made
+		$pl->configure(-text => getProdName($cv)) if (defined $cv and $cv ne "");
+		emptyFrame($target);
+		$r = 1; $c = 1;
+		my $st = "SELECT store,price,date FROM prices WHERE upc=? ORDER BY date DESC LIMIT 25;";
+		my $list = FlexSQL::doQuery(4,FlexSQL::getDB(),$st,$cv);
+		skrDebug::dump($list);
+		$target->Label(-text => "Store")->grid(-row => $r, -column => 1);
+		$target->Label(-text => "Price")->grid(-row => $r, -column => 2);
+		$target->Label(-text => "Date")->grid(-row => $r, -column => 3);
+		$target->Label(-text => "")->grid(-row => $r, -column => 4);
+		foreach my $listrow (@$list) {
+			makePriceRow($target,@$listrow);
+		}
+	}
+	sub makePriceRow {
+		my ($t,$a,$b,$c) = @_;
+		unless (defined $t) {
+			print Common::lineNo(1);
+		}
+		$r++;
+		my $rl1 = $t->Label(-text => getStore($a) . "   ")->grid(-row => $r, -column => 1);
+		my $rl2 = $t->Label(-text => "   $b   ")->grid(-row => $r, -column => 2);
+		my $rl3 = $t->Label(-text => "   $c")->grid(-row => $r, -column => 3);
+		my $rb;
+		$rb = $t->Button(-text => "-", -command => sub {
+			my $st = "DELETE FROM prices WHERE date=?;"; # set query
+			FlexSQL::doQuery(2,FlexSQL::getDB(),$st,$c); # delete price
+			$rl1->destroy(); # clear the line from the list.
+			$rl2->destroy();
+			$rl3->destroy();
+			print "B: " . join(',',@_);
+			$rb->destroy(); # remove this button.
+		} )->grid(-row => $r, -column => 5);
+	}
+	sub allowSave {
+		my ($pv,$av,$cv) = @_;
+#		print "$pv/$cv>";
+		return 0 if ($pv eq $cv); # no change made
+		$okb->configure( -state=> 'active' ) if (defined $okb);
+		return 1
+	}
+	sub savePriceInfo {
+		my ($but,$dbh,$target,$si,$uv,$dv,$pv,$ue) = @_;
+print "sPI(" . join(',',@_) . ")\n";
+		$pv =~ /^(\d+.?\d*)$/;
+		unless (defined $1) {
+			$but->configure(-state => 'disabled');
+			return;
+		}
+		my $ist = "INSERT INTO prices(upc,store,price,date) VALUES(?,?,?,?);";
+		(defined $dbh or $dbh = FlexSQL::getDB());
+		FlexSQL::doQuery(2,$dbh,$ist,$uv,$si,$pv,$dv);
+		makePriceRow($target,$si,$pv,$dv);
+		$but->configure(-state => 'disabled');
+		$ue->focus();
+	}
 	showAddMinButton($of,0); # Make the item being priced an item user wants to keep on hand.
+	$ue->focus();
 }
+
+sub getStore {
+	my ($id,$dbh) = @_;
+	(defined $dbh or $dbh = FlexSQL::getDB());
+#	my $st = "SELECT name FROM stores WHERE store=?;";
+#	my $sn = FlexSQL::doQuery(7,$dbh,$st,$id);
+#	return ($$sn[0] or "Unknown Store");
+	my $names = getStoreNames($dbh);
+	return ($$names{$id} or "Unknown Store");
+}
+print ".";
+
+sub getStoreNames {
+	my $namelist = Sui::passData('storenames');
+	my ($dbh,$force) = @_;
+	return $namelist if (not $force and defined $namelist and scalar (keys %{ $namelist}));
+	(defined $dbh or $dbh = FlexSQL::getDB());
+	my $st = "SELECT store,name FROM stores;";
+	my $namehash = FlexSQL::doQuery(3,$dbh,$st,'store');
+	foreach my $i (keys %$namehash) { # query returns a nested hash that's not very accessible
+		$$namelist{$i} = $$namehash{$i}{'name'};
+	}
+	Sui::storeData('storenames',$namelist);
+	return $namelist;
+}
+print ".";
 
 sub getMinimums { # calculate the highest minimum of items in a category.
 	# Allows you to set a minimum for "Tomatoes, Diced" on the name brand can and have it apply to the generic that has a keep of 0.
@@ -375,6 +518,7 @@ sub showShoppingList { # For buying items that are getting low
 	my %args = %{ Sui::passData('frameargs') };
 	my $of = $parent->{rtpan};
 	emptyFrame($of);
+	selectButton($parent,"Buy");
 	my $header = $of->Label(-text => "Shopping List")->grid(-row => 1, -column => 2);
 	my @list = getDeficits(getMinimums());
 	my $if = $of->Frame()->grid(-row => 1, -column => 1, -columnspan => 7);
@@ -383,8 +527,50 @@ sub showShoppingList { # For buying items that are getting low
 	showAddMinButton($of,3); # add a minimum for items not yet in DB for keeping on hand.
 }
 sub showPriceEntry { # For showing a price history and analysis
+	my ($parent,) = @_;
+	my %args = %{ Sui::passData('frameargs') };
+	my $of = $parent->{rtpan};
+	emptyFrame($of);
+	my $header = $of->Label(-text => "Price List")->grid(-row => 1, -column => 2);
 }
 sub showStoreEntry {
+	my ($parent,$entry) = @_;
+	my ($nv,$lv);
+	print "Store select: " . @_ . "\n";
+	sub setEntry {
+		my ($box,$ent,$val) = @_;
+		$ent->configure(-text=>$val) if (defined $ent and defined $val);
+		$box->destroy();
+		return;
+	}
+	my $if = $parent->Scrolled('Frame', -scrollbars => 'osoe')->grid(-sticky => 'we', -row => 1, -column => 1, -columnspan => 10);
+	my $dbh = FlexSQL::getDB();
+	my $ne = entryRow($if,"Name:",1,1,undef,\$nv,);
+	my $le = entryRow($if,"Address:",2,1,undef,\$lv,);
+	my $nb = $if->Button(-text => "Add New", -command => sub {
+		my $sid = 0;
+		return unless (defined $nv and defined $lv); # skip processing of incomplete data.
+		FlexSQL::doQuery(2,$dbh,"DELETE FROM stores WHERE name='DELETE';");
+		my $cst = "INSERT INTO stores(name,loc) VALUES(?,?);";
+		if (FlexSQL::doQuery(2,$dbh,$cst,"DELETE",$lv)) {
+			$cst = "SELECT store FROM stores WHERE name=?;";
+			$sid = FlexSQL::doQuery(7,$dbh,$cst,"DELETE"); $sid = $$sid[0];
+			$cst = "UPDATE stores SET name=? WHERE store=?;";
+			FlexSQL::doQuery(2,$dbh,$cst,$nv,$sid);
+			getStoreNames(FlexSQL::getDB(),1);
+		}
+		print "ID: $sid\n";
+		setEntry($if,$entry,$sid) if ($sid);
+		})->grid(-row => 2,-column => 4);
+	my $st = "SELECT store,name FROM stores WHERE name IS NOT NULL AND name != 'DELETE';";
+	my @sids = @{ FlexSQL::doQuery(4,$dbh,$st); };
+	my $row = 3;
+	foreach my $r (@sids) {
+		my ($id,$name) = @$r;
+		$if->Button(-text => "$name", -command => sub { setEntry($if,$entry,$id); })->grid(-row => $row, -column => 2);
+		$row++;
+	}
+	$if->Button(-text => "Cancel", -command => sub { setEntry($if); })->grid(-row => $row, -column => 3);
 }
 
 sub populateMainWin {
@@ -418,6 +604,7 @@ sub showItemDB {
 	my $name = "";
 	my $size = 0;
 	my $unit = "oz";
+	selectButton($parent,"Edit");
 	my $if = makeMyFrame($of,"Edit item information");
 	my $ue = entryRow($of,"UPC: ",2,1);
 	$of->Button( -text => "Fetch Info", -command => sub { print "\nWhen this is coded, it'll try to pull item info from a UPC database. For now, enjoy the pretty status button.\n"; $if->Button(-text => "Not yet coded")->pack(-anchor => 'w'); })->grid(-row => 2, -column => 3);
@@ -550,6 +737,29 @@ sub showItemDB {
 	#	or if not found, pulls open the description entries below for saving.
 	$ue->bind('<Key-Return>', sub { editUPC($ue); });
 	$ue->focus;
+}
+print ".";
+
+sub showRecipeProposal {
+	my ($parent,) = @_;
+	my %args = %{ Sui::passData('frameargs') };
+	my $of = $parent->{rtpan};
+	emptyFrame($of);
+	selectButton($parent,"Plan");
+	my $header = $of->Label(-text => "Recipe Worksheet")->grid(-row => 1, -column => 2);
+}
+print ".";
+
+
+sub getProdName {
+	my ($ut,$dbh) = @_;
+	$st = "SELECT name FROM items WHERE upc=?;";
+	(defined $dbh or $dbh = FlexSQL::getDB());
+	$row = FlexSQL::doQuery(6,$dbh,$st,$ut);
+	skrDebug::dump($row);
+	return "unknown" unless (defined $row);
+	$$row{name} = "unknown" unless defined $$row{name};
+	return $$row{name};
 }
 print ".";
 
