@@ -161,7 +161,7 @@ print ".";
 sub doQuery {
 	my ($qtype,$dbh,$statement,@parms) = @_;
 	my $realq;
-	print "Received '$statement' ",join(',',@parms),"\n" if (FIO::config('Debug','v') > 5);
+	print "Received '$statement' ",join(',',@parms),"\n" if (FIO::config('Debug','v') > 5) || Common::showDebug('q') || Common::showDebug('Q');
 	unless (defined $dbh) {
 		Pdie("Baka! Send me a database, if you want data.");
 	}

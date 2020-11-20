@@ -52,12 +52,14 @@ sub emptyFrame {
 	foreach my $c (@kids) {
 		$c->destroy();
 	}
+	return 1;
 }
 
 ### Refresh or populate a frame with its heading and an inner frame, then return the inner frame
 sub makeMyFrame {
 	my ($of,$heading) = @_;
 	emptyFrame($of);
+	my ($pw,$ph) = (Sui::passData('panewidth'),Sui::passData('paneheight'));
 	my $header = $of->Label(-text => "$heading")->grid(-row => 1, -column => 1);
 	my %args = %{ Sui::passData('frameargs') };
 	my $if = $of->Frame(%args);
@@ -287,7 +289,7 @@ sub showPantryContents { # For cooking/reducing inventory
 	$args{-width} *= 0.95;
 	my $sf = $if->Scrolled('Frame', -scrollbars => 'osoe', %args)->pack(-fill => 'both',);
 	$sf->Label(-text => " ", -width => 80, -height => 2)->grid(-row => 2, -column => 1, -columnspan => 7);
-	my $st = "SELECT * FROM items ORDER BY generic ASC;";
+	my $st = "SELECT * FROM items WHERE upc NOT LIKE 'RG%' ORDER BY generic ASC;";
 	my $qst = "SELECT qty FROM counts WHERE upc=?;";
 	my $dbh = Sui::passData('db');
 	my $tah = { -justify => 'left', -wraplength => $pxwidth };
@@ -355,7 +357,7 @@ sub showProductInfo { # for pricing products in the store
 		my ($target,$pl,$cv) = @_;
 #		print "$pv/$av/$cv]";
 #		return 0 if ($pv eq $cv); # no change made
-		$pl->configure(-text => getProdName($cv)) if (defined $cv and $cv ne "");
+		$pl->configure(-text => getProdName($cv,1)) if (defined $cv and $cv ne "");
 		emptyFrame($target);
 		$r = 1; $c = 1;
 		my $st = "SELECT store,price,date FROM prices WHERE upc=? ORDER BY date DESC LIMIT 25;";
@@ -585,8 +587,10 @@ sub populateMainWin {
 	if ($reset) {
 		exists $win->{rtpan} and $win->{rtpan}->destroy();
 	} else {
-		my $w = $win->width * 0.9;
-		my $h = $win->height * 0.9;
+		my $w = ($win->width * 0.9 or 594);
+		my $h = ($win->height * 0.9 or 435);
+		$frameargs->{-height} = (Sui::passData('paneheight') or $h);
+		$frameargs->{-width} = (Sui::passData('panewidth') or $w);
 		Sui::storeData('frameargs',$frameargs);
 		unless (FlexSQL::table_exists($dbh,"items") && FlexSQL::table_exists($dbh,"stores")) {
 			print "-=-";
@@ -749,29 +753,136 @@ print ".";
 sub showRecipeProposal {
 	my ($parent,) = @_;
 	my %args = %{ Sui::passData('frameargs') };
-	my $of = $parent->{rtpan};
+	my ($of,$rowindex,$addbutton) = ($parent->{rtpan},0,undef);
 	emptyFrame($of);
 	selectButton($parent,"Plan");
 	my $header = $of->Label(-text => "Recipe Worksheet")->grid(-row => 1, -column => 2);
-	our $rframe = $of->Scrolled('Frame',-scrollbars=>'osoe')->grid(-row => 2,-column => 1,-columnspan => 5);
-	our (@rows,@costs);
+	our $rframe = $of->Scrolled('Frame',-scrollbars=>'osoe', -width => 600, -height => 400)->grid(-row => 2,-column => 1,-columnspan => 5, -sticky => "nsw");
+	our (@rows,@costs,$buttons);
 	my $buttonrow = $of->Frame()->grid(-row => 3,-column => 1,-columnspan => 5);
 	my $costl = $buttonrow->Label(-text => "Cost:")->grid(-row=>1,-column=>1);
 	my $costo = $buttonrow->Label(-text => "\$0.00")->grid(-row=>1,-column=>2);
-	my $rowindex = 0;
-	my $addbutton = $buttonrow->Button(-text=>"Add Ingredient",-command=>sub { print "TODO: code these (add)"; })->grid(-row=>1,-column=>3);
-	my $buybutton = $buttonrow->Button(-text=>"Buy Ingredients",-command=>sub { print "TODO: code these (buy)"; })->grid(-row=>1,-column=>4);
-	my $recsavbut = $buttonrow->Button(-text=>"Save",-command=>sub { print "TODO: code these (save)"; })->grid(-row=>1,-column=>5);
+	$addbutton = $buttonrow->Button(-text=>"Add Ingredient",-command=>sub { addIngredient($rframe,$addbutton,\$rowindex,$buttons,$costo); })->grid(-row=>1,-column=>3);
+	my $buybutton = $buttonrow->Button(-text=>"Buy Ingredients",-state => 'disabled', -command=>sub { print "TODO: code these (buy)"; })->grid(-row=>1,-column=>4);
+	my $recsavbut = $buttonrow->Button(-text=>"Save",-state => 'disabled', -command=>sub { print "TODO: code these (save)"; })->grid(-row=>1,-column=>5);
 
+	sub addIngredient {
+		my ($target,$daib,$r,$bbox,$out) = @_;
+		$daib->configure(-state => 'disabled');
+		my ($gt,$upc,%dat) = (0,"",());
+		my $gbbox = $target->Frame()->grid(-row => 1, -column => 1, -columnspan => 5);
+		our $ge = $gbbox->Entry(-text => "", -validate => 'all', -validatecommand => sub { return searchGens(\$gt,$target,$gbbox,$bbox,$daib,$r,$out,@_); })->grid(-row => 1, -column => 1); # Entry that searches generics (once every three characters entered)
+		sub searchGens {
+			my ($go,$t,$t2,$bb,$dib,$ir,$output,$en,$ed,$eo,$ep,$op,$ee) = @_;
+		#print "sG - Objects: mI target: $t; GBBox: $t2; Button Box: $bb; GEntry: $ge;\n";
+			my ($gv,$gl) = ($ge->get(),length($ge->get()));
+			$$go = $gl - 2 if ($$go > 0 && $op == 7);
+		#print "Values: $$go, $eo/$ed/$en ($op\@$ep) +$ee\n";
+			return 1 unless ($gl >= $$go + 2 && $gl > 0);
+			$$go = $gl;
+			print "Length: $gl...\n";
+			defined $bb and $bb->destroy();
+			$bb = $t2->Frame()->grid(-row => 2, -column => 1, -sticky => "new"); # row of buttons, one for each generic, from results of search
+			my $st = "SELECT generic FROM items WHERE generic LIKE ? GROUP BY generic;";
+			my $res = FlexSQL::doQuery(7,FlexSQL::getDB(),$st,"\%$en\%");
+			my ($br,$bc) = (1,1);
+			foreach my $g (@$res) {
+				# Each generic button will do a search and show items with that generic as buttons in a replacement of the generics buttons
+				$bb->Button(-text => "$g", -command => sub { showItems($t,$t2,$bb,$ge,$dib,$g,$ir,$output); })->grid(-row => $br, -column => $bc);
+				$bc++;
+				if ($bc > 4) {
+					$bc = 1;
+					$br++;
+				}
+			}
+			$bb->Button(-text => "New Generic: " . $ge->get(), -command => sub { addGeneric($t,$t2,$bb,$ge,$dib,$ir,$output); })->grid(-row => $br, -column => $bc);
+			return 1;
+		}
+		$ge->bind('<Key-Return>', sub { return searchGens(\$gt,$target,$gbbox,$bbox,$daib,$r,$out,@_); });
+		sub addGeneric {
+			my ($t,$t2,$butb,$mge,$aib,$gt,$ir,$ol) = @_;
+			my %idh;
+# TODO: Add generic to item DB
+# Assign a random upc or a upc based on the name of the generic
+			# Assign a cost, size, and UOM
+			$idh{cost} = ($$cost[0] or 0.00);
+			$idh{out} = $ol;
+# Assign a keep count
+# Save data to the DB and to the hash we pass to makeIngredient
+			$mge->destroy();
+			$butb->destroy();
+#			makeIngredient($i,$t,$ir,%idh);
+			$aib->configure(-state => 'normal');
+		}
+		sub showItems {
+			my ($t,$t2,$butb,$mge,$aib,$gt,$ir,$ol) = @_;
+		#print "sI - Objects: mI target: $t; GBBox: $t2; Button Box: $butb; GEntry: $mge;\n";
+			my $st = "SELECT upc,name,unit,size FROM items WHERE generic=?;";
+			my $res = FlexSQL::doQuery(3,FlexSQL::getDB(),$st,$gt,'upc'); # Get items of this generic
+			my @order = sort {$$res{$a}{upc} cmp $$res{$b}{upc}} keys %$res;
+			defined $butb and $butb->destroy();
+			$butb = $t2->Frame()->grid(-row => 2, -column => 1, -sticky => "new"); # row of buttons, one for each item, from results of search
+			my ($br,$bc) = (1,1);
+			foreach my $i (@order) {
+				print "Item $$res{$i}{upc}: $$res{$i}{name}\n";
+				my $st = "SELECT AVG(price) FROM prices WHERE upc=?";
+				if (0) { # TODO: make a limit on the date
+					$st = "$st AND date > ?";
+				}
+				$st = "$st ORDER BY date DESC LIMIT 10;"; # limit to latest 10 prices
+				my $cost = FlexSQL::doQuery(7,FlexSQL::getDB(),$st,$$res{$i}{upc});
+				$$res{$i}{cost} = ($$cost[0] or 0.00);
+				$$res{$i}{out} = $ol;
+				# Get cost and add to $$res data;
+		# once an item or generic is selected, that item's UOM is used to determine the unit used in recipe planning
+		#   and how many items the required amount represents
+		# Or I may have to just make a cost calculation ahead of calling makeIngredient, and leave the unit breakout for the buyIngredients display
+		# makeIngredient is then called to show the row
+				$butb->Button(-text => "$$res{$i}{name}", -command => sub { $mge->destroy(); $butb->destroy(); makeIngredient($i,$t,$ir,%{ $$res{$i} }); $aib->configure(-state => 'normal'); })->grid(-row => $br, -column => $bc);
+				$bc++;
+				if ($bc > 4) {
+					$bc = 1;
+					$br++;
+				}
+			}
+		}
+		# bind Enter on entry to search and fill button row, but if no results, add a new generic, somehow (to a new table for recipe planning)
+		$ge->focus();
+		return 1;
+	}
+
+	sub sumCosts {
+		my ($output) = shift;
+		my $total = 0.00;
+		foreach my $c (@costs) {
+			$total += $c;
+		}
+		$output->configure(-text => "\$$total");
+	}
 	sub makeIngredient {
-		my ($upc,$t,$r) = @_;
-		push(@rows,$t->Frame()->pack(-fill=>"x"));
-		push(@costs,0.00);
-		$rows[$r]->Label(-text=>"$data[0]")->grid(-row=>1,-column=>1); # Name
-		$rows[$r]->Entry(-text=>"0")->grid(-row=>1,-column=>2); # Qty
-		$rows[$r]->Label(-text=>"$data[1]")->grid(-row=>1,-column=>3); # Units
-		$rows[$r]->Label(-text=>"$data[2]")->grid(-row=>1,-column=>4); # Cost
-		$rows[$r]->Button(-text=>" - ", -command => sub { $costs[$r] = 0.00; $rows[$r]->destroy(); })->grid(-row=>1,-column=>5); # Remove
+		my ($upc,$t,$r,%data) = @_;
+	#print "mI - Objects: mI target: $t;\n";
+		push(@rows,$t->Frame()->grid(-row => $$r + 2, -column => 1, -sticky=>"ew"));
+		push(@costs,$data{cost});
+		my $ud = $data{size};
+		$rows[$$r]->Label(-text=>"$data{name}")->grid(-row=>1,-column=>1); # Name
+		my $qe = $rows[$$r]->Entry(-text=>"$ud")->grid(-row=>1,-column=>2); # Qty
+		$rows[$$r]->Label(-text=>"$data{unit}")->grid(-row=>1,-column=>3); # Units
+		my $cl = $rows[$$r]->Entry(-text=>"$data{cost}",-state => 'disabled', -width => 6)->grid(-row=>1,-column=>4); # Cost
+		my $pc = $rows[$$r]->Label(-text => "1")->grid(-row => 1, -column => 6);
+		my $rowind = $$r;
+		$qe->configure(-validate => 'all', -validatecommand => sub {
+			# TODO: add sanity checks
+			return 0 unless validateNumeric(@_);
+			my $count = Common::nround(0,$qe->get() / $ud + 0.499);
+			$pc->configure(-text => "$count");
+			$costs[$rowind] = $count * $cl->get();
+			sumCosts($data{out});
+			return 1;
+			});
+		$rows[$$r]->Button(-text=>" - ", -command => sub { $costs[$rowind] = 0.00; $rows[$rowind]->destroy(); sumCosts($data{out}); })->grid(-row=>1,-column=>7); # Remove
+		sumCosts($data{out});
+		$$r++; 		# $$r++ if makeIngredient succeeds.
 	}
 
 }
@@ -779,15 +890,19 @@ print ".";
 
 
 sub getProdName {
-	my ($ut,$dbh) = @_;
-	$st = "SELECT name FROM items WHERE upc=?;";
+	my ($ut,$showgen,$dbh) = @_;
+	$st = "SELECT name,generic FROM items WHERE upc=?;";
 	(defined $dbh or $dbh = FlexSQL::getDB());
 	$row = FlexSQL::doQuery(6,$dbh,$st,$ut);
 	skrDebug::dump($row);
 	return "unknown" unless (defined $row);
 	$$row{name} = "unknown" unless defined $$row{name};
+	return $$row{name} . "  (" . $$row{generic} . ")" if $showgen;
 	return $$row{name};
 }
+print ".";
+
+sub validateNumeric { my ($en,$ed,$eo,$ep,$op,$ee) = @_; $en =~ /^(\d*\.?\d+)$/; return (defined $1 or $en eq ""); }
 print ".";
 
 print ".";

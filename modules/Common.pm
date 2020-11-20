@@ -6,6 +6,7 @@ use Exporter qw(import);
 our @EXPORT = qw( infMes getColorsbyName missing );
 
 my $debug = main::howVerbose();
+my $buglist = "";
 my @obj = @{ Sui::passData('objectionablecontent') };
 my %objindex;
 $objindex{@obj} = (0..$#obj);
@@ -813,6 +814,28 @@ sub dateConv {
 		my $datestr = "$y-$m-$d";
 		return (DateTime::Format::DateParse->parse_datetime( $datestr ),$y,$m,$d);
 	}
+}
+print ".";
+
+sub debugAdd {
+	my $chars = shift;
+	$buglist = $buglist . "" . $chars; # As this string is accessed by PRE, almost any characcters should be okay.
+}
+print ".";
+
+sub debugRem {
+	my $chars = shift;
+	$buglist =~ s/$chars//g; # Removes chars even if they were added multiple times.
+}
+print ".";
+
+sub showDebug {
+	my $chars = shift; # One character at a time, or false negatives may appear. TODO: # If multiple characters are given, all must be present to return true.
+	#return $buglist unless (defined $chars); # get the list of debug modes
+	# TODO: split characters for individual processing
+	# run through each character and add to an array of results
+	$buglist =~ /($chars)/;
+	return (defined $1); # chars found
 }
 print ".";
 

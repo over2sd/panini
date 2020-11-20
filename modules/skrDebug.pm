@@ -9,7 +9,8 @@ use Exporter;
 sub dump {
 	my ($ref,$desc,$showref) = @_;
 	my $desc2 = (defined $desc ? $desc : "Variable");
-	print "$desc2 is a " . ref($ref) . ".\n" if $showref;
+	my $type = (ref($ref) eq "" ? ref(\$ref) : "reference to " . ref($ref));
+	print "$desc2 is a $type.\n" if $showref;
 	print "$desc: " if defined $desc;
 	print Dumper $ref;
 }
