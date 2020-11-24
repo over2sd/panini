@@ -1,9 +1,9 @@
 #!/usr/bin/perl
 use strict; use warnings;
 my $PROGRAMNAME = "Panini pantry system";
-my $version = "0.21a";
+my $version = "0.22a";
 my $cfn = "config.ini";
-my $debug = 0;
+my $debug = 1;
 my $dbn = 'pantry';
 my $dbs = '';
 
@@ -44,9 +44,10 @@ require TGK;
 FIO::loadConf($cfn);
 FIO::config('Debug','v',$debug);
 #Common::debugAdd('q'); # Show SQL queries
+Common::debugAdd('g'); # Show certain GUI events
 
-my $gui = TGK::createMainWin($PROGRAMNAME,$version,670,490);
-my ($pw,$ph) = (600,480);
+my $gui = TGK::createMainWin($PROGRAMNAME,$version,1020,620);
+my ($pw,$ph) = (800,600);
 my ($dbh,$error) = FlexSQL::getDB('L') or undef;
 
 Sui::storeData('panewidth',$pw);
@@ -55,5 +56,3 @@ Sui::storeData('paneheight',$ph);
 TGUI::populateMainWin($dbh,$gui,0);
 
 MainLoop; # actually run the program
-
-# TODO: Cook panel: Add a upc field to scan to decrement Qty

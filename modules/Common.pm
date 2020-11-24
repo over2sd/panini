@@ -830,12 +830,20 @@ sub debugRem {
 print ".";
 
 sub showDebug {
-	my $chars = shift; # One character at a time, or false negatives may appear. TODO: # If multiple characters are given, all must be present to return true.
-	#return $buglist unless (defined $chars); # get the list of debug modes
-	# TODO: split characters for individual processing
-	# run through each character and add to an array of results
-	$buglist =~ /($chars)/;
-	return (defined $1); # chars found
+	my ($chars,$all) = @_; # One or more characters. If multiple characters are given, all must be present to return true.
+	return $buglist if (main::howVerbose() > 5 && defined $all); # get the list of debug modes; Only works in high debug mode, so don't rely on it for anything except printing.
+	if (length $chars > 1) {# multiple characters
+		$all = 0; my $trues = 0; my @group = split('',$chars); # split characters for individual processing
+		foreach my $c (@group) { # run through each character and add to an array of results
+			$all++; # +1
+			$trues += showDebug($c); #+0 or +1
+		}
+		return ($all == $trues ? 1 : 0); # Same number of +1s?
+	} else {
+		$buglist =~ /($chars)/;
+#		print ";;$1/$chars" if (defined $1);
+		return ($1 eq $chars ? 1 : 0); # char found
+	}
 }
 print ".";
 
