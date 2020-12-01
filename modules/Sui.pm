@@ -73,7 +73,7 @@ sub getOpts {
 ##		'003' => ['x',"Background color ",'bgcol',"#CCCCCC"],
 		'004' => ['c',"Errors are fatal",'fatalerr'],
 		'005' => ['t',"Name of organization",'orgname'],
-		'006' => ['n',"Time Zone Offset (from GMT)",'tz',-12,12,1,6],
+		'006' => ['n',"Time Zone Offset (from GMT)",'tz',-6,-12,12,1,6],
 		'007' => ['n',"By default, how many days ahead to post",'eventlead'],
 		'008' => ['c',"Automatically tag post with its RSS category",'autotag'],
 
@@ -95,6 +95,7 @@ sub getOpts {
 		'043' => ['t',"Color codes for gradient (comma separated)",'gradient'],
 		'044' => ['c',"Preview RSS feed before saving",'preview'],
 		'045' => ['n',"Size of calendar buttons",'caldaysize',100,20,500,1,10],
+		'046' => ['t',"Default page to load",'defaultpage'],
 
 		'100' => ['l',"Network",'Net'],
 		'101' => ['c',"Save bandwidth by saving image thumbnails",'savethumbs'],

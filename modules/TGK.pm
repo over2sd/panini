@@ -42,6 +42,49 @@ sub updateEntry {
 }
 print ".";
 
-FIO::config("UI","GUI","tk"); # set UI type
+sub bindEnters {
+	my ($o,$s,$m) = @_;
+	$m = 15 unless defined $m; # default mask
+	my @mask = Common::expandMask($m,4);
+	$o->bind('<Key-Return>',$s);
+	$o->bind('<Return>',$s);
+	$o->bind('<KP_Enter>',$s);
+	return 0;
+}
 print ".";
+
+
+sub makeOptBox {
+	my ($t,@tabs) = @_;
+	my $bb = $t->Frame()->grid(-row=>2,-column=>1);
+	my $nb = $t->Scrolled('Frame', -scrollbars => 'osoe',)->grid(-row=>3,-column=>1);
+	$t->Label(-text => "Options:")->grid(-row => 1, -column => 1);
+	my $np = $nb->Frame()->grid(-row=>1,-column=>1);
+	my ($optgroups) = ({});
+	foreach my $n (@tabs) {
+		$optgroups = addOptTab($bb,$np,$n,$optgroups);
+	}
+	Sui::storeData('ogroups',$optgroups);
+	return ($bb,$np);
+}
+print ".";
+
+sub addOptTab {
+	my ($bb,$np,$on,$og) = @_;
+	
+	return $og;
+}
+print ".";
+
+sub place {
+	my ($w,$r,$c,$a,%extra) = @_;
+	my $s = Common::hashString(%extra);
+	Common::showDebug('g') and print "placeWidget: $r, $c, " . ($a or "'w'") . ", " . $s . "\n";
+	$w->grid(%extra);
+	return $w->grid(-sticky=>($a or 'w'),-row=>($r or 1),-column=>($c or 1));
+}
+print ".";
+
+FIO::config("UI","GUI","tk"); # set UI type
+print " OK; ";
 1;

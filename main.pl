@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 use strict; use warnings;
 my $PROGRAMNAME = "Panini pantry system";
-my $version = "0.22a";
+my $version = "0.24a";
 my $cfn = "config.ini";
 my $debug = 1;
 my $dbn = 'pantry';
@@ -41,9 +41,11 @@ require FlexSQL;
 require UPC;
 require TGUI;
 require TGK;
+require Options;
 FIO::loadConf($cfn);
 FIO::config('Debug','v',$debug);
 #Common::debugAdd('q'); # Show SQL queries
+Common::debugAdd('d'); # Show data transfer
 Common::debugAdd('g'); # Show certain GUI events
 
 my $gui = TGK::createMainWin($PROGRAMNAME,$version,1020,620);

@@ -39,5 +39,5 @@ sub fetchUPCinfo {
 }
 print ".";
 
-print ".";
+print " OK; ";
 1;

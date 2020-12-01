@@ -215,7 +215,7 @@ sub nround {
 	my $target = 1;
 	while ($prec > 0) { $target /= 10; $prec--; }
 	while ($prec < 0) { $target *= 10; $prec++; } # negative precision gives 10s, 100s, etc.
-	if ($debug) { print "Value $value rounded to $target: " . nearest($target,$value) . ".\n"; }
+	if ($debug and showDebug('m')) { print "Value $value rounded to $target: " . nearest($target,$value) . ".\n"; }
 	return nearest($target,$value);
 }
 print ".";
@@ -225,6 +225,16 @@ my %ambiguous = %{ Sui::passData('disambiguations') };
 sub disambig {
 	# if given a gui reference, display an askbox to select from options for disambiguation
 	# if tag is key in hash, return first value; otherwise, return tag
+}
+print ".";
+
+sub hashString {
+	my %h = shift;
+	my $s = "";
+	foreach my $k (sort keys %h) {
+		exists $h{$k} and $s .= "$k: " . $h{$k} . ", ";
+	}
+	return $s;
 }
 print ".";
 
@@ -410,6 +420,9 @@ sub errorOut {
 	} elsif ($error =~ m/^\n?\[W\]/) { # warning
 		$color = ($color ? 3 : 0);
 		($fatal ? warn errColor($error,$color,$nl,$args{gobj}) : print errColor($error,$color,$nl,$args{gobj}));
+	} elsif ($error =~ m/^\n?\[D\]/) { # debug
+		$color = ($color ? 8 : 0);
+		($fatal ? warn errColor($error,$color,$nl,$args{gobj}) : print errColor($error,$color,$nl,$args{gobj}));
 	} elsif ($error =~ m/^\n?\[I\]/) { # information
 		$color = ($color ? 2 : 0);
 		my $lf = (($args{continues} or 0) ? "" : "\n");
@@ -433,6 +446,13 @@ sub infMes {
 	my ($text,$continue,%args) = @_;
 	defined $continue and $args{continues} = $continue;
 	Common::errorOut('inline',0,color => 1, fatal => 0, string => "\n[I] $text", %args);
+}
+print ".";
+
+sub dbgMes {
+	my ($text,$continue,%args) = @_;
+	defined $continue and $args{continues} = $continue;
+	Common::errorOut('inline',0,color => 1, fatal => 0, string => "\n[D] $text", %args);
 }
 print ".";
 
@@ -844,6 +864,27 @@ sub showDebug {
 #		print ";;$1/$chars" if (defined $1);
 		return ($1 eq $chars ? 1 : 0); # char found
 	}
+}
+print ".";
+
+=item stringToColor STRING
+
+Converts a hex code to an integer Prima can use for a color value.
+If STRING is shorter than three characters, returns 0 (black).
+Returns an integer representing the given hexadecimal STRING.
+
+=cut
+sub stringToColor {
+	my $string = shift;
+	$string =~ s/^#//;
+	return 0 unless (length($string) >= 3);
+	if ($string =~ m/[\dA-Fa-f]{6}/) {
+		return hex $string;
+	} elsif ($string =~ m/[\dA-Fa-f]{3}/) {
+		$string = substr($string,0,1)x2 . substr($string,1,1)x2 . substr($string,2,1)x2;
+		return hex $string;
+	}
+	return 0;
 }
 print ".";
 
