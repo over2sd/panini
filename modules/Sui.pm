@@ -69,85 +69,91 @@ sub getOpts {
 	my %opts = (
 		'000' => ['l',"General",'Main'],
 		'001' => ['c',"Save window positions",'savepos'],
-##		'002' => ['x',"Foreground color ",'fgcol',"#00000"],
-##		'003' => ['x',"Background color ",'bgcol',"#CCCCCC"],
-		'004' => ['c',"Errors are fatal",'fatalerr'],
-		'005' => ['t',"Name of organization",'orgname'],
+		'002' => ['c',"Errors are fatal",'fatalerr'],
 		'006' => ['n',"Time Zone Offset (from GMT)",'tz',-6,-12,12,1,6],
-		'007' => ['n',"By default, how many days ahead to post",'eventlead'],
-		'008' => ['c',"Automatically tag post with its RSS category",'autotag'],
+		'00c' => ['n',"Left",'left',0,0,400,1,25],
+		'00d' => ['n2',"Top",'top',0,0,400,1,25],
+		'00a' => ['n',"Width",'width',640,0,4000,1,25],
+		'00b' => ['n2',"Height",'height',480,0,3000,1,25],
+		'00e' => ['n',"Left Offset",'xoff',0,0,80,1,25],
+		'00f' => ['n2',"Top Offset",'yoff',0,0,80,1,25],
+
+		'010' => ['l',"Fonts",'Font'],
+		'011' => ['f',"Major heading font/size: ",'bighead',"Arial-24"],
+		'012' => ['f',"General font/size: ",'body'],
+		'013' => ['f',"Navigation font/size: ",'button'],
+		'014' => ['f',"Special font/size: ",'special'], # for lack of a better term
+		'015' => ['f',"Progress font/size: ",'progress'],
+		'016' => ['f',"Progress Button font/size: ",'progbut'],
+		'017' => ['f',"Heading font/size: ",'head'],
+		'018' => ['f',"Sole-entry font/size: ",'bigent'],
 
 		'020' => ['l',"File",'Disk'],
-		'021' => ['t',"Rotational Image Group files live here",'rotatedir'],
-		'022' => ['c',"Keep nextID across sessions",'persistentnext'],
-		'025' => ['c',"Purge old RSS items when loading",'purgeRSS'],
+		'021' => ['t',"Database Lite files live here",'dbdir'],
 		
 		'030' => ['l',"User Interface",'UI'],
+		#'031' => ['t',"GUI",'GUI',"no"],
 		'032' => ['n',"Shorten names to this length",'namelimit',20,15,100,1,10],
-		'039' => ['x',"Header background color code: ",'headerbg',"#CCCCFF"],
-		'03a' => ['c',"Show count in section tables",'linenos'],
-		'03d' => ['x',"Background for list tables",'listbg',"#EEF"],
+		'033' => ['c',"Show UPC on button",'buttonUPC',1],
+		'034' => ['n',"Width of columns",'maxcolw',100,20,500,1,10],
+		'035' => ['t',"Default page to load",'defaultpage'],
 		'03e' => ['c',"Show generic item in Cook tab",'showcookgeneric'],
+		'03d' => ['x',"Background for list tables",'listbg',"#EEF"],
 		'043' => ['x',"Background for letter buttons",'letterbg',"#CFC"],
-		'040' => ['c',"Show a horizontal rule between rows",'rulesep'],
-		'041' => ['x',"Rule color: ",'rulecolor',"#003"],
 		'042' => ['n',"How many rows per column in file lists?",'filerows',10,3,30,1,5],
 		'043' => ['t',"Color codes for gradient (comma separated)",'gradient'],
-		'044' => ['c',"Preview RSS feed before saving",'preview'],
-		'045' => ['n',"Size of calendar buttons",'caldaysize',100,20,500,1,10],
-		'046' => ['t',"Default page to load",'defaultpage'],
+		'044' => ['c',"Show Page Step Buttons on numeric rows",'showpstep'],
+		# hintfore
+		# hintback
+
+		'050' => ['l',"Database",'DB'],
+		'051' => ['t',"Connection",'type'],
+		'052' => ['c',"Store FL OZ as OZ",'unifyoz',1],
+		'053' => ['c',"Generics stored lowercase",'lcgeneric',0],
+		'054' => ['t',"Server",'host'],
+		'055' => ['t',"Username",'uname'],
+		'056' => ['c',"Ask before connecting",'askDB'],
+		#server,uname,password,host,
+
+		'060' => ['l',"Permanent Inventory",'Rules'],
+		'061' => ['c',"Show barely fulfilled items on restock list",'beloworat',0],
+		'062' => ['n',"Add to shopping count over minimum",'sparecount',0,0,100,1,10],
 
 		'100' => ['l',"Network",'Net'],
 		'101' => ['c',"Save bandwidth by saving image thumbnails",'savethumbs'],
 		'102' => ['t',"Thumbnail Directory",'thumbdir'],
 		'103' => ['n',"File argument Style",'wierdRL'], # 0 = xxx.png, 1 = xxx.png?dl=1, 2 = view?asset=xxxx, 3 = view.png?asset=xxxx
 
-		'750' => ['l',"Fonts",'Font'],
-		'754' => ['f',"Tab font/size: ",'label'],
-		'751' => ['f',"General font/size: ",'body'],
-		'755' => ['f',"Special font/size: ",'special'], # for lack of a better term
-		'752' => ['f',"Progress font/size: ",'progress'],
-		'753' => ['f',"Progress Button font/size: ",'progbut'],
-		'754' => ['f',"Major heading font/size: ",'bighead'],
-		'755' => ['f',"Heading font/size: ",'head'],
-		'756' => ['f',"Sole-entry font/size: ",'bigent'],
-
 		'870' => ['l',"Custom Text",'Custom'],
-		'876' => ['t',"Options dialog",'options'],
-
-		'877' => ['l',"Table",'Table'],
-		'878' => ['c',"Statistics summary",'statsummary'],
-		'879' => ['c',"Stats include median score",'withmedian'],
-		'87f' => ['g',"Column Widths",'label'],
-		'88a' => ['g',"Rows:",'label'],
-		'88b' => ['n',"Height",'t1rowheight',60,0,600,1,10],
+		'87f' => ['t',"Options dialog",'options'],
+		'871' => ['t',"Sample Text for fonts",'fontsamp'],
+		'872' => ['t',"Where items are added",'itemadd'],
+		'873' => ['t',"Where prices are added",'priceadd'],
+		'874' => ['t',"Where contents are shown",'pantrylist'],
+		'875' => ['t',"Where unmet minimums are listed",'buylist'],
+		'876' => ['t',"Where recipes are priced",'recipe'],
+		'877' => ['t',"Where items are updated",'editor'],
+		#program
+		#TODO: Custom text for each button and page heading
 
 		'ff0' => ['l',"Debug Options",'Debug'],
 		'ff1' => ['c',"Colored terminal output",'termcolors'],
+		'ff2' => ['n',"Verbosity of debug output",'v',0,0,7,1,3],
 	);
 	return %opts;
 }
 print ".";
 
-sub getTableWidths {
-	my @list = ((FIO::config('Table','t1c0') or 20));
-	push(@list,(FIO::config('Table','t1c1') or 140));
-	push(@list,(FIO::config('Table','t1c2') or 100));
-	return @list;
-}
-print ".";
-
 sub getDefaults {
 	return (
-		['Main','nextid',1],
 		['Main','savepos',1],
-		['UI','notabs',1],
 		['UI','GUI','tk'],
-		['Font','bigent',"Verdana 24"],
+		['Font','bighead',"Verdana 24"],
 		['Main','tz',-6],
 		['Net','savethumbs',1],
 		['Net','thumbdir',"itn"],
 		['DB','lcgeneric',1],
+		['DB','askDB',1],
 		['UI','gradient',"#F00,#F30,#F60,#F90,#FC0,#FF0,#CF0,#9F0,#6F0,#3F0,#0F0,#0F3,#0F6,#0F9,#0FC,#0FF,#0CF,#09F,#06F,#03F,#00F,#30F,#60F,#90F,#C0F,#F0F,#F0C,#F09,#F06,#F03,#EEF,#DDE,#CCD,#BBC,#AAB,#99A,#889,#778,#667,#556,#445,#334,#223,#112,#001"],
 	);
 }
@@ -180,7 +186,11 @@ sub poll {
 print ".";
 
 sub aboutMeText {
-	return "$PROGRAMNAME $version\nThis program exists to allow you to catalogue your pantry, make up shopping lists, and track prices at different stores.\nI hope you enjoy it.";
+	return "\n" . main::myName(1) . "\n \nThis program exists to allow you to catalogue your pantry, make up shopping\n"
+	. " lists, and track prices at different stores.\nI hope you enjoy it.\n"
+	. " If you'd like to see a feature added to this program, please visit\n"
+	. " https://github.com/over2sd/panini/issue and create a 'new issue' with the\n"
+	. " 'Feature Request' label.";
 }
 print ".";
 

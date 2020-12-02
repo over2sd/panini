@@ -22,8 +22,8 @@ sub mkOptBox {
 	my $page = 0;
 	my $running = 1;
 	my $toSave = {};
-	my $nb = $target->Scrolled('Frame', -scrollbars => 'osoe',-width => $w, -height => $h, )->grid(-row=>2,-column=>1);
-	$nb->Label(-text => "Options:")->grid(-row=>$pos++,-column => 2);
+	my $nb = $target->Scrolled('Frame', -scrollbars => 'osoe',-width => $w, -height => $h - 50, )->grid(-row=>2,-column=>1);
+	$nb->Label(-text => "Options:")->grid(-row=>$pos++,-column => 1);
 	my $vb;# = PGK::labelBox($optbox,"Options",'optlist','v',boxfill => 'both', boxex => 1);
 	my %args;
 #	my @tablist;
@@ -37,9 +37,9 @@ sub mkOptBox {
 	my $buttons = $target->Frame();
 	place($buttons,3,1,'e');
 	my ($curtab,$section);
-	my $spacer = $buttons->Label(-text => " ")->pack(-fill => 'x', -expand => 1,);
-	my $cancelB = $buttons->Button(-text => "Cancel", -command => sub { $nb->destroy(); })->pack();
-	my $saveB = $buttons->Button(-text => "Save", -state => 'disabled', )->pack();
+	my $spacer = $buttons->Label(-text => " ")->pack(-fill => 'x', -expand => 1, -side=>'left');
+	my $cancelB = $buttons->Button(-text => "Cancel", -command => sub { TGUI::emptyFrame($target); })->pack(-side=>'left');
+	my $saveB = $buttons->Button(-text => "Save", -state => 'disabled', )->pack(-side=>'left');
 #	$saveB->configure(-command => sub { saveFromOpt($saveB,[$target,$toSave]); });
 	$curtab = $nb; # until/unless tabs implemented, set current tab to main page
 	foreach my $k (sort keys %opts) {
@@ -48,7 +48,7 @@ sub mkOptBox {
 			my $l = $nb->Label(-text => "  $o[1]", -justify => 'left' ); # for each section, make a notebook page
 			place($l,$pos++,1);
 			$section = $o[2];
-			filler($curtab,$spos,4,'x');
+			filler($curtab,$spos,20,'x');
 			$curtab = $nb->Frame(-relief=>'groove',-bd=>2);
 			place($curtab,$pos,1,'we');
 			$page++;
@@ -92,15 +92,8 @@ sub addModOpts {
 		}elsif (/d/) { # Date row (with calendar button if option enabled)
 $parent->Label(-text=>"Date type option not coded: $lab - $key - $col")->grid(-row=>$pos,-column=>1);
 #PGUI::devHelp($parent,"Date type options ($key)");
-		}elsif (/n/) {
-			my $col = (config($s,$key) or $col); # pull value from config, if present
-			buildNumericRow($parent,$saveHash,$applyBut,$lab,$s,$key,$col,$change,$pos,@a);
-		}elsif (/t/) {
-			labelRow($parent,$lab,$pos);
-			my $e = $parent->Entry(-text => (config($s,$key) or ""));
-			place($e,$pos,3);
-#			$e->onChange( sub { optChange($e,[$change,$pos,$saveHash,$s,$key,$applyBut,(config($s,$key) or "")]); });
 		}elsif (/f/) {
+			if ($col =~ m/^#/) { $col = "Verdana 12"; } # if passed a hex code
 			require Tk::FontDialog;
 			labelRow($parent,$lab,$pos);
 			my $e = $parent->Entry(-text => (config($s,$key) or $col));
@@ -110,9 +103,7 @@ $parent->Label(-text=>"Date type option not coded: $lab - $key - $col")->grid(-r
 			my $fl = $parent->Label(-text => (config('Custom','fontsamp') or $e->get())); # "Lorem Ipsum Fox Qqgfo0O"
 			place($fl,$pos,5);
 			sub setFont {
-				my ($w,$fn) = @_;
-				my $f = $e->GetDescriptiveFontName($fn);
-				$w->configure(-font => $f, -text => $fn);
+				return TGK::setFont(@_);
 			}
 			setFont($fl,$e->get());
 			$b->configure(-command => sub {
@@ -126,12 +117,23 @@ $parent->Label(-text=>"Date type option not coded: $lab - $key - $col")->grid(-r
 			$e->configure(-validate => 'focusout', -validatecommand => sub { 
 				my $df = $e->get();
 				setFont($fl,$df);
-				return 1;
+				return optChange($e,[$change,$pos,$saveHash,$s,$key,$applyBut,(config($s,$key) or "")]);
 			});
 			TGK::bindEnters($e,sub { setFont($fl,$e->get()); });
-			#$f->build($lab,{ font => (config($s,$key) or "") },{ text => "Select", });
-#			$e->onChange( sub { optChange($e,[$change,$pos,$saveHash,$s,$key,$applyBut,(config($s,$key) or "")]); } );
-
+		}elsif (/n/) {
+			my $paired = 0;
+			if (/n2/) {
+				$paired = 1;
+				$pos--;
+			}
+			my $col = (config($s,$key) or $col); # pull value from config, if present
+			if ($col =~ m/^#/) { $col = 0; } # if passed a hex code
+			buildNumericRow($parent,$saveHash,$applyBut,$lab,$s,$key,$col,$change,$pos,$paired,@a);
+		}elsif (/t/) {
+			labelRow($parent,$lab,$pos);
+			my $e = $parent->Entry(-text => (config($s,$key) or ""));
+			place($e,$pos,3);
+			$e->configure(-validatecommand => sub { return optChange($e,[$change,$pos,$saveHash,$s,$key,$applyBut,(config($s,$key) or "")]); });
 =item Comment
 
 		}elsif (/g/) {
@@ -160,15 +162,12 @@ PGUI::devHelp($parent,"Mask page options ($key)");
 			return;
 		}
 	}
-
-=item Comment
-
 }
 print ".";
 
 sub mayApply {
 	my ($button,$maskref) = @_;
-	unless ($$maskref == 0) { $button->enabled(1); }
+	unless ($$maskref == 0) { $button->configure(-state => 'normal'); }
 }
 print ".";
 
@@ -176,19 +175,22 @@ sub optChange {
 	my ($caller,$args,$altargs) = @_;
 	unless ($args =~ m/ARRAY/) { $args = $altargs; } # combobox sends an extraneous event argument before the user args
 	my ($maskref,$p,$href,$sec,$k,$aButton,$default,$rbval) = @$args;
-#	print "my (\$maskref,\$p,\$href,\$sec,\$k,\$aButton,\$default,\$rbval)\n";
-#	printf("my (%s,%s,%s,%s,%s,%s,%s,%s)\n",$maskref,$p,$href,$sec,$k,$aButton,$default,$rbval);
+	print "my (\$maskref,\$p,\$href,\$sec,\$k,\$aButton,\$default,\$rbval)\n";
+	printf("my (%s,%s,%s,%s,%s,%s,%s,%s)\n",$maskref,$p,$href,$sec,$k,$aButton,$default,($rbval or "undef"));
 	my $value;
 	for (ref($caller)) {
-		if (/CheckBox/) {
-			$value = $caller->checked or 0;
-			$value = ($value ? 1 : 0);
-		} elsif (/InputLine/) {
-			$value = $caller->text;
+		print "Checking $_...";
+		if (/Checkbutton/) {
+			$value = $caller->cget('-variable') or 0;
+			print "C $k " . $value . " V " . $$value . "\n";
+			$value = (defined $value ? $$value : 0);
+		} elsif (/Entry/) {
+			$value = $caller->get();
+			print "E $k V " . $value . "\n";
 		} elsif (/ComboBox/) {
 			$value = $caller->text;
-		} elsif (/FontButton/) {
-			$value = $caller->get_font_name();
+#		} elsif (/FontButton/) {
+#			$value = $caller->get_font_name();
 		} elsif (/RadioButton/) {
 			($caller->get_active() ? $value = $rbval : return );
 		} elsif (/XButtons/ or /MaskGroup/) {
@@ -213,6 +215,10 @@ sub optChange {
 			$$maskref = Common::unsetBit($p,$$maskref); delete $$href{$sec}{$k};
 		}
 	}
+	return 1;
+
+=item Comment
+
 }
 print ".";
 
@@ -297,20 +303,26 @@ sub buildColorRow {
 	#	} else {
 	$b->configure(-command => sub { my $color = $b->chooseColor(-title => "Choose $lab Color", -initialcolor => $e->get()); $color and $e->configure(-text => $color); matchColor($e,$b); });
 	#	}
-#	$e->onChange( sub { optChange($e,[$change,$pos,$options,$s,$key,$applyBut,(config($s,$key) or "")]); });
-# TODO: Change background of $e to color selected in color dialog
+	$e->configure(-validatecommand => sub { optChange($e,[$change,$pos,$options,$s,$key,$applyBut,(config($s,$key) or "")]); });
+# TODO: Change background of $e to color selected in color dialog?
 }
 print ".";
 
 sub buildNumericRow {
-	my ($box,$options,$applyBut,$lab,$s,$key,$v,$changes,$pos,@boundaries) = @_;
-	labelRow($box,$lab,$pos);
+	my ($box,$options,$applyBut,$lab,$s,$key,$v,$changes,$pos,$paired,@boundaries) = @_;
+	my $col = ($paired ? 8 : 1);
+	labelRow($box,$lab,$pos,$col);
 #skrDebug::dump(\@boundaries,"Bounds");
-	my $n = $box->Spinbox(-width=>3,-from=>($boundaries[0] or 0),-to=>($boundaries[1] or 10),-increment=>($boundaries[2] or 1),-value=>($v or 0));
-	place($n,$pos,3);
-#	my $row = PGK::labelBox( $box,$lab,'numrow','h', boxex => 0, labex => 0);
-#	my $n = $row->insert( SpinEdit => value => $v, min => ($boundaries[0] or 0), max => ($boundaries[1] or 10), step => ($boundaries[2] or 1), pageStep => ($boundaries[3] or 5));
-#	$n->onChange( sub { optChange($n,[$changes,$pos,$options,$s,$key,$applyBut,config($s,$key)]); });
+	my ($f,$t,$i) = (($boundaries[0] or 0),($boundaries[1] or 10),($boundaries[2] or 1));
+	$v or $v = 0; # default value
+#	my $n = $box->Spinbox(-width=>3,-from=>$f,-to=>$t,-increment=>$i,-value=>$v);
+	my $n = $box->Entry(-width=>4, -text => "$v");
+	place($n,$pos,$col + 2);
+	place($box->Button(-width => 4, -padx => 1, -pady => 1, -text=>$f,-command=>sub { $n->configure(-text => "$f"); }),$pos,$col + 3);
+	place($box->Button(-padx => 1, -pady => 1, -text=>"-",-command=>sub { $n->configure(-text => $n->get() - $i); }),$pos,$col + 4);
+	place($box->Button(-padx => 1, -pady => 1, -text=>"+",-command=>sub { $n->configure(-text => $n->get() + $i); $n->focus(); $n->focus(); $n->focusNext(); }),$pos,$col + 5);
+	place($box->Button(-width => 4, -padx => 1, -pady => 1, -text=>$t,-command=>sub { $n->configure(-text => "$t"); }),$pos,$col + 6);
+	$n->configure(-validate => 'focusout', -validatecommand => sub { return optChange($n,[$changes,$pos,$options,$s,$key,$applyBut,config($s,$key)]); });
 }
 print ".";
 

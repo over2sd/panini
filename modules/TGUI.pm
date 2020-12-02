@@ -266,9 +266,9 @@ sub showButtonPanel {
 	$bf->grid(-row=>1,-column=>2,-sticky=>"ne");
 	my $sysf = $if->Frame()->grid(-row=>2,-column=>2);
 	push(@bgroup,$sysf->Button(-image=>$if->Photo(-file => "img/Tango-gear.gif"), -command => sub { showOptionsBox($parent); } )->grid(-row=>1,-column=>1)); # TODO: Add options gear at bottom of frame
-	push(@bgroup,$sysf->Button(-image=>$if->Photo(-file => "img/Tango-info.gif"), -state => 'disabled')->grid(-row=>1,-column=>2)); # TODO: Add an about button to bottom of frame
+	push(@bgroup,$sysf->Button(-image=>$if->Photo(-file => "img/Tango-info.gif"), -command => sub { showAboutBox($parent); } )->grid(-row=>1,-column=>2)); # TODO: Add an about button to bottom of frame
 	push(@bgroup,$sysf->Button(-image=>$if->Photo(-file => "img/Tango-question.gif"), -state => 'disabled')->grid(-row=>1,-column=>3)); # TODO: Add a help button to bottom of frame
-	Sui::storeData('bgroup',@bgroup);
+	Sui::storeData('bgroup',\@bgroup);
 }
 print ".";
 
@@ -353,11 +353,27 @@ print ".";
 
 sub showOptionsBox { # For changing options
 	my ($parent,) = @_;
-	selectButton("Opts");
+	selectButton("Options");
 	my $of = $parent->{rtpan};
 	emptyFrame($of);
 	my ($pw,$ph) = (Sui::passData('panewidth'),Sui::passData('paneheight'));
 	Options::mkOptBox($of,$pw,$ph,Sui::getOpts());
+}
+print ".";
+
+sub showAboutBox { # For displaying the about text in a box
+	my ($parent,) = @_;
+	selectButton("About");
+	my $of = $parent->{rtpan};
+	emptyFrame($of);
+	my ($pw,$ph) = (Sui::passData('panewidth'),Sui::passData('paneheight'));
+	my $if = makeMyFrame($of,"About This Program");
+	my $aboutstring = Sui::aboutMeText();
+	my @abouts = split('\n',$aboutstring);
+	my $row = 1;
+	foreach my $a (@abouts) {
+		TGK::place($if->Label(-text => $a),$row++,1);
+	}
 }
 print ".";
 

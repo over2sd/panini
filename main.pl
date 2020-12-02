@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 use strict; use warnings;
 my $PROGRAMNAME = "Panini pantry system";
-my $version = "0.24a";
+my $version = "0.25a";
 my $cfn = "config.ini";
 my $debug = 1;
 my $dbn = 'pantry';
@@ -10,6 +10,11 @@ my $dbs = '';
 $|++; # Immediate STDOUT, maybe?
 print "[I] $PROGRAMNAME v$version is running.";
 flush STDOUT;
+
+sub myName {
+	my ($showver,) = @_;
+	return "$PROGRAMNAME" . ($showver ? " $version" : "");
+}
 
 use Getopt::Long;
 

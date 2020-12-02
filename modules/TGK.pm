@@ -24,6 +24,14 @@ sub createMainWin {
 }
 print ".";
 
+sub setFont {
+	my ($w,$fn) = @_;
+	my $f = $w->GetDescriptiveFontName($fn);
+	# TODO: Sanity check font name
+	$w->configure(-font => $f, -text => $fn);
+}
+print ".";
+
 sub getGUI {
 	return $mw;
 }
@@ -79,7 +87,7 @@ print ".";
 sub place {
 	my ($w,$r,$c,$a,%extra) = @_;
 	my $s = Common::hashString(%extra);
-	Common::showDebug('g') and print "placeWidget: $r, $c, " . ($a or "'w'") . ", " . $s . "\n";
+	Common::showDebug('g') and main::howVerbose() > 5 and print "placeWidget: $r, $c, " . ($a or "'w'") . ", " . $s . "\n";
 	$w->grid(%extra);
 	return $w->grid(-sticky=>($a or 'w'),-row=>($r or 1),-column=>($c or 1));
 }
