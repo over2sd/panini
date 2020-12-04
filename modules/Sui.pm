@@ -71,12 +71,14 @@ sub getOpts {
 		'001' => ['c',"Save window positions",'savepos'],
 		'002' => ['c',"Errors are fatal",'fatalerr'],
 		'006' => ['n',"Time Zone Offset (from GMT)",'tz',-6,-12,12,1,6],
+		'009' => ['c',"Write config on exit",'writecfg',0],
 		'00c' => ['n',"Left",'left',0,0,400,1,25],
 		'00d' => ['n2',"Top",'top',0,0,400,1,25],
 		'00a' => ['n',"Width",'width',640,0,4000,1,25],
 		'00b' => ['n2',"Height",'height',480,0,3000,1,25],
 		'00e' => ['n',"Left Offset",'xoff',0,0,80,1,25],
 		'00f' => ['n2',"Top Offset",'yoff',0,0,80,1,25],
+		
 
 		'010' => ['l',"Fonts",'Font'],
 		'011' => ['f',"Major heading font/size: ",'bighead',"Arial-24"],
@@ -108,16 +110,18 @@ sub getOpts {
 
 		'050' => ['l',"Database",'DB'],
 		'051' => ['t',"Connection",'type'],
-		'052' => ['c',"Store FL OZ as OZ",'unifyoz',1],
-		'053' => ['c',"Generics stored lowercase",'lcgeneric',0],
-		'054' => ['t',"Server",'host'],
-		'055' => ['t',"Username",'uname'],
-		'056' => ['c',"Ask before connecting",'askDB'],
+		'052' => ['c',"Ask before connecting",'askDB'],
+		'053' => ['c2',"Store FL OZ as OZ",'unifyoz',1],
+		'054' => ['c3',"Generics stored lowercase",'lcgeneric',0],
+		'055' => ['t',"Server",'host'],
+		'056' => ['t',"Username",'uname'],
 		#server,uname,password,host,
 
-		'060' => ['l',"Permanent Inventory",'Rules'],
+		'060' => ['l',"Inventory Management",'Rules'],
 		'061' => ['c',"Show barely fulfilled items on restock list",'beloworat',0],
 		'062' => ['n',"Add to shopping count over minimum",'sparecount',0,0,100,1,10],
+		'064' => ['n2',"Days for long-term price average",'longdays',90,7,365,1,10],
+		'063' => ['n',"Count for short-term price average",'shortcount',25,3,97,1,5],
 
 		'100' => ['l',"Network",'Net'],
 		'101' => ['c',"Save bandwidth by saving image thumbnails",'savethumbs'],
@@ -153,7 +157,7 @@ sub getDefaults {
 		['Net','savethumbs',1],
 		['Net','thumbdir',"itn"],
 		['DB','lcgeneric',1],
-		['DB','askDB',1],
+		['DB','askDB',0],
 		['UI','gradient',"#F00,#F30,#F60,#F90,#FC0,#FF0,#CF0,#9F0,#6F0,#3F0,#0F0,#0F3,#0F6,#0F9,#0FC,#0FF,#0CF,#09F,#06F,#03F,#00F,#30F,#60F,#90F,#C0F,#F0F,#F0C,#F09,#F06,#F03,#EEF,#DDE,#CCD,#BBC,#AAB,#99A,#889,#778,#667,#556,#445,#334,#223,#112,#001"],
 	);
 }

@@ -25,6 +25,7 @@ sub config {
 		unless ($cfgread or $emptywarned) {
 			$emptywarned++;
 			Common::errorOut('FIO::config',1,fatal => 0,trace => 0, depth => 1 ); }
+#			useDefaults(); # if we haven't loaded a config, we need some defaults.
 		if (defined $cfg->val($section,$key,undef)) {
 			return $cfg->val($section,$key);
 		} else {
@@ -52,6 +53,19 @@ sub cfgrm {
 }
 print ".";
 
+sub useDefaults {
+	my @defs = Sui::getDefaults();
+	foreach my $d (@defs) {
+		if (defined config($$d[0],$$d[1])) {
+			Common::showDebug('c') and print "Using defined value " . config($$d[0],$$d[1]) . " for $$d[0]/$$d[1].\n";
+		} else{ 
+			Common::showDebug('c') and print "Using default $$d[0]/$$d[1] of $$d[2].\n";
+			config($$d[0],$$d[1],$$d[2]);
+		}
+	}
+}
+print ".";
+
 sub validateConfig { # sets config values for missing required defaults
 	my %defaults = (
 		"width" => 480,
@@ -63,9 +77,7 @@ sub validateConfig { # sets config values for missing required defaults
 			config('Main',$_,$defaults{$_});
 		}
 	}
-	unless (config('Font','bighead')) {
-		config('Font','bighead',"Arial 24");
-	}
+	useDefaults();
 }
 print ".";
 

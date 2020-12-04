@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 use strict; use warnings;
 my $PROGRAMNAME = "Panini pantry system";
-my $version = "0.25a";
+my $version = "0.26a";
 my $cfn = "config.ini";
 my $debug = 1;
 my $dbn = 'pantry';
@@ -47,19 +47,26 @@ require UPC;
 require TGUI;
 require TGK;
 require Options;
-FIO::loadConf($cfn);
-FIO::config('Debug','v',$debug);
 #Common::debugAdd('q'); # Show SQL queries
 Common::debugAdd('d'); # Show data transfer
 Common::debugAdd('g'); # Show certain GUI events
+Common::debugAdd('c'); # Show config loading
+FIO::loadConf($cfn);
+FIO::config('Debug','v',$debug);
 
 my $gui = TGK::createMainWin($PROGRAMNAME,$version,1020,620);
-my ($pw,$ph) = (800,600);
-my ($dbh,$error) = FlexSQL::getDB('L') or undef;
+my ($pw,$ph) = (800,500);
+my  ($dbh,$error);
+if (FIO::config('DB','askDB')) {
+	($dbh,$error) = TGUI::selectDB($gui);
+} else {
+	($dbh,$error) = FlexSQL::getDB(FIO::config('DB','type') or 'L') or undef;
+}
 
 Sui::storeData('panewidth',$pw);
 Sui::storeData('paneheight',$ph);
-
+TGK::pushStatus("Loading GUI");
 TGUI::populateMainWin($dbh,$gui,0);
-
+TGK::pushStatus(" Ready",1);
 MainLoop; # actually run the program
+FIO::config('Main','writecfg') and FIO::saveConf(); # write config on exit

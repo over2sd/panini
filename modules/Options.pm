@@ -39,8 +39,8 @@ sub mkOptBox {
 	my ($curtab,$section);
 	my $spacer = $buttons->Label(-text => " ")->pack(-fill => 'x', -expand => 1, -side=>'left');
 	my $cancelB = $buttons->Button(-text => "Cancel", -command => sub { TGUI::emptyFrame($target); })->pack(-side=>'left');
-	my $saveB = $buttons->Button(-text => "Save", -state => 'disabled', )->pack(-side=>'left');
-#	$saveB->configure(-command => sub { saveFromOpt($saveB,[$target,$toSave]); });
+	my $saveB = $buttons->Button(-text => "Save", )->pack(-side=>'left');
+	$saveB->configure(-command => sub { saveFromOpt($saveB,[$target,$toSave]); });
 	$curtab = $nb; # until/unless tabs implemented, set current tab to main page
 	foreach my $k (sort keys %opts) {
 		my @o = @{ $opts{$k} };
@@ -67,10 +67,8 @@ sub mkOptBox {
 
 	return;
 }
-
 print ".";
 
-#####=> Migration marker
 sub addModOpts {
 	my ($parent,$s,$change,$pos,$applyBut,$saveHash,@a) = @_;
 	unless (scalar @a > 2) { print "\n[W] Option array too short: @a - length: ". scalar @a . "."; return; } # malformed option, obviously
@@ -83,11 +81,15 @@ sub addModOpts {
 #	my $rw = $parent->Frame()->grid(-row=>$pos++,-column=>1,-sticky=>'w');
 	for ($t) {
 		if (/c/) {
-			my $cb = $parent->Checkbutton(-text => $lab );
-			place($cb,$pos,1);
 			my $checkit = (config($s,$key) or 0);
+	print "CHECK: $s/$key: $checkit\n";
 			$checkit = (("$checkit" eq "1" or "$checkit" =~ /[Yy]/) ? 1 : 0);
-			($checkit ? $cb->select() : $cb->deselect());
+			my $cb = $parent->Checkbutton(-text => $lab, -variable => \$checkit);
+			my $col = 1;
+			$_ =~ m/c(\d)/;
+			if (defined $1) { $col = $1; $pos -= $1 - 1; }
+			$col = $col * 2 - 1;
+			place($cb,$pos,$col);
 			$cb->configure(-command => sub { optChange($cb,[$change,$pos,$saveHash,$s,$key,$applyBut,(config($s,$key) or 0)]); } );
 		}elsif (/d/) { # Date row (with calendar button if option enabled)
 $parent->Label(-text=>"Date type option not coded: $lab - $key - $col")->grid(-row=>$pos,-column=>1);
@@ -133,7 +135,7 @@ $parent->Label(-text=>"Date type option not coded: $lab - $key - $col")->grid(-r
 			labelRow($parent,$lab,$pos);
 			my $e = $parent->Entry(-text => (config($s,$key) or ""));
 			place($e,$pos,3);
-			$e->configure(-validatecommand => sub { return optChange($e,[$change,$pos,$saveHash,$s,$key,$applyBut,(config($s,$key) or "")]); });
+			$e->configure(-validate => 'focusout', -validatecommand => sub { return optChange($e,[$change,$pos,$saveHash,$s,$key,$applyBut,(config($s,$key) or "")]); });
 =item Comment
 
 		}elsif (/g/) {
@@ -155,9 +157,9 @@ PGUI::devHelp($parent,"Mask page options ($key)");
 			my $col = (config($s,$key) or $col); # pull value from config, if present
 			buildColorRow($parent,$saveHash,$applyBut,$lab,$s,$key,$col,$change,$pos);
 		} else {
-	place($parent->Label(-text=>"$t"),$pos,1);
-	place($parent->Label(-text=>"$lab"),$pos,2);
-	place($parent->Label(-text=>"$key"),$pos,3);
+#	place($parent->Label(-text=>"$t"),$pos,1);
+#	place($parent->Label(-text=>"$lab"),$pos,2);
+#	place($parent->Label(-text=>"$key"),$pos,3);
 			warn "Ignoring bad option $t.\n";
 			return;
 		}
@@ -175,8 +177,8 @@ sub optChange {
 	my ($caller,$args,$altargs) = @_;
 	unless ($args =~ m/ARRAY/) { $args = $altargs; } # combobox sends an extraneous event argument before the user args
 	my ($maskref,$p,$href,$sec,$k,$aButton,$default,$rbval) = @$args;
-	print "my (\$maskref,\$p,\$href,\$sec,\$k,\$aButton,\$default,\$rbval)\n";
-	printf("my (%s,%s,%s,%s,%s,%s,%s,%s)\n",$maskref,$p,$href,$sec,$k,$aButton,$default,($rbval or "undef"));
+	print "my (\$maskref,\$p,\$href,\$sec,\$k,\$aButton,\$default,\$rbval)\n" if main::howVerbose() > 3 and Common::showDebug('d');
+	printf("my (%s,%s,%s,%s,%s,%s,%s,%s)\n",$maskref,$p,$href,$sec,$k,$aButton,$default,($rbval or "undef")) if main::howVerbose() > 3 and Common::showDebug('d');
 	my $value;
 	for (ref($caller)) {
 		print "Checking $_...";
@@ -204,28 +206,26 @@ sub optChange {
 #				$value = $caller->get_value_as_int() * 100;
 #		print "$_: $value\n";
 	}
-	unless (defined $default) {
+	defined $value or return 0;
+	unless (defined $default) { # no default; no need to check changed value
 		$$maskref = Common::setBit($p,$$maskref);  $$href{$sec}{$k} = $value or 0;
 		mayApply($aButton,$maskref);
 	} else {
-		unless ($value eq $default) {
+		unless ($value eq $default) { # check value changed from default
 			$$maskref = Common::setBit($p,$$maskref); $$href{$sec}{$k} = $value or 0;
 			mayApply($aButton,$maskref);
-		} else {
+		} else { # use default; delete key
 			$$maskref = Common::unsetBit($p,$$maskref); delete $$href{$sec}{$k};
 		}
 	}
 	return 1;
-
-=item Comment
-
 }
 print ".";
 
 sub saveFromOpt {
 	my ($caller,$args) = @_;
-	my ($window,$href) = @$args;
-	$caller->enabled(0);
+	$caller->configure(-state => 'disabled');
+	my ($parent,$href) = @$args;
 	foreach my $s (keys %$href) {
 #		print "Section $s:\n";
 		foreach (keys %{ $$href{$s} }) {
@@ -233,13 +233,16 @@ sub saveFromOpt {
 			config($s,$_,($$href{$s}{$_} or 0));
 		}
 	}
-	my $status = PGK::getGUI("status");
 	FIO::saveConf();
-	$status->push("Options applied.");
-	$window->destroy();
+	TGK::pushStatus("Options applied.");
 	# TODO: check here to see if something potentially crash-inducing has been changed, and shut down cleanly, instead, after informing user that a restart is required.
-	formatTooltips(); # set tooltip format, in case it was changed.
-	PGK::refreshUI(PGK::getGUI(),(FIO::config('DB','FlexSQLisloaded') == 1 ? FlexSQL::getDB() : undef)); # refresh the UI
+#	formatTooltips(); # set tooltip format, in case it was changed.
+	TGK::emptyFrame($parent);
+	place($parent->Label(-text => "Options applied."),1,1);
+	place($parent->Button(-text => "Reload Options pane", command => sub { TGUI::showOptionsBox($parent); }),2,1);
+
+=item Comment
+
 }
 print ".";
 
@@ -294,7 +297,7 @@ sub buildColorRow {
 	my $e = $box->Entry(-text => "$col");
 	my $b = $box->Button(-text => " Select ", -background => "$col");
 	place($e,$pos,3);
-	place($b,$pos,4);
+	place($b,$pos,4,'w',-columnspan => 3);
 	$e->configure(-validate => 'all', -validatecommand => sub { matchColor($e,$b); return 1; } );
 	TGK::bindEnters($e,sub { matchColor($e,$b); });
 	#color => (config($s,$key) or $col)
@@ -313,14 +316,16 @@ sub buildNumericRow {
 	my $col = ($paired ? 8 : 1);
 	labelRow($box,$lab,$pos,$col);
 #skrDebug::dump(\@boundaries,"Bounds");
-	my ($f,$t,$i) = (($boundaries[0] or 0),($boundaries[1] or 10),($boundaries[2] or 1));
+	my ($f,$t,$i,$p) = (($boundaries[0] or 0),($boundaries[1] or 10),($boundaries[2] or 1),($boundaries[3] or 5));
 	$v or $v = 0; # default value
 #	my $n = $box->Spinbox(-width=>3,-from=>$f,-to=>$t,-increment=>$i,-value=>$v);
 	my $n = $box->Entry(-width=>4, -text => "$v");
 	place($n,$pos,$col + 2);
 	place($box->Button(-width => 4, -padx => 1, -pady => 1, -text=>$f,-command=>sub { $n->configure(-text => "$f"); }),$pos,$col + 3);
+# TODO: Optional pagedn button
 	place($box->Button(-padx => 1, -pady => 1, -text=>"-",-command=>sub { $n->configure(-text => $n->get() - $i); }),$pos,$col + 4);
 	place($box->Button(-padx => 1, -pady => 1, -text=>"+",-command=>sub { $n->configure(-text => $n->get() + $i); $n->focus(); $n->focus(); $n->focusNext(); }),$pos,$col + 5);
+# TODO: Optional pageup button
 	place($box->Button(-width => 4, -padx => 1, -pady => 1, -text=>$t,-command=>sub { $n->configure(-text => "$t"); }),$pos,$col + 6);
 	$n->configure(-validate => 'focusout', -validatecommand => sub { return optChange($n,[$changes,$pos,$options,$s,$key,$applyBut,config($s,$key)]); });
 }

@@ -229,7 +229,7 @@ sub disambig {
 print ".";
 
 sub hashString {
-	my %h = shift;
+	my %h = @_;
 	my $s = "";
 	foreach my $k (sort keys %h) {
 		exists $h{$k} and $s .= "$k: " . $h{$k} . ", ";

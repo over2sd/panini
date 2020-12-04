@@ -2,6 +2,7 @@ package TGK;
 print __PACKAGE__;
 
 my $mw;
+my $status = "\n(Status)";
 
 sub createMainWin {
 	my ($name,$ver,$w,$h,$x,$y) = @_;
@@ -20,8 +21,22 @@ sub createMainWin {
 	my $title = "$name v. $ver";
 	$mw = new MainWindow(-title => "$title");
 	$mw->geometry($geo);
+	place($mw->Label(-relief => 'sunken',-textvariable => \$status,-anchor => 'nw'),2,2,'ews',-columnspan => 10); # a status bar
 	return $mw;
 }
+print ".";
+
+sub pushStatus {
+	my ($text,$continues) = @_;
+	if ($continues) {
+		$status .+ $text;
+		return 1;
+	}
+	$status =~ s/.*\n//;
+	$status .= "\n$text";
+	return 1;
+}
+
 print ".";
 
 sub setFont {
@@ -87,7 +102,8 @@ print ".";
 sub place {
 	my ($w,$r,$c,$a,%extra) = @_;
 	my $s = Common::hashString(%extra);
-	Common::showDebug('g') and main::howVerbose() > 5 and print "placeWidget: $r, $c, " . ($a or "'w'") . ", " . $s . "\n";
+	$s = ($s eq "" ? "" : " + $s");
+	Common::showDebug('g') and main::howVerbose() > 5 and print "placeWidget: $r x $c, S:" . ($a or "'w'") . $s . "\n";
 	$w->grid(%extra);
 	return $w->grid(-sticky=>($a or 'w'),-row=>($r or 1),-column=>($c or 1));
 }

@@ -247,8 +247,8 @@ print ".";
 Sui::storeData('bnames',["Cook","Edit","Buy","Store","Plan","Price","Options","About","Help"]);
 sub showButtonPanel {
 	my ($parent,$dbh) = @_;
-	my $if = $parent->Frame()->grid(-row=>1,-column=>1,-sticky=>"nws");
-	my $bf = $if->Frame(-relief=>'groove', -width => 10);
+	my $if = $parent->Frame(-height => 510, -relief=>'raised', -bd => 2)->grid(-row=>1,-column=>1,-sticky=>"nws", -rowspan => 2, -ipady => 1, -pady => 1);
+	my $bf = $if->Frame(-relief=>'groove', -bd => 2, -width => 10);
 	my %butpro = ( -fill=>'x', -padx=>2, -pady=>2);
 	$bf->Label(-text=>"Tasks:",-width=>7)->pack(%butpro);
 	my $loadb = $bf->Button(-text=>"Store",-command=>sub { showPantryLoader($parent); })->pack(%butpro);
@@ -504,14 +504,14 @@ sub showProductInfo { # for pricing products in the store
 print ".";
 
 sub getProdPrices {
-	my $st = "SELECT store,price,date FROM prices WHERE upc=? ORDER BY date DESC LIMIT 25;";
-	return FlexSQL::doQuery(4,FlexSQL::getDB(),$st,shift);
+	my $st = "SELECT store,price,date FROM prices WHERE upc=? ORDER BY date DESC LIMIT ?;";
+	return FlexSQL::doQuery(4,FlexSQL::getDB(),$st,shift,(config('Rules','shortcount') or 25));
 }
 print ".";
 
 sub getAvgPrice {
-	my $st = "SELECT AVG(price) AS mean FROM prices WHERE upc=? AND date >= DATE('now','-90 days');";
-	return @{ FlexSQL::doQuery(5,FlexSQL::getDB(),$st,shift) }[0];
+	my $st = "SELECT AVG(price) AS mean FROM prices WHERE upc=? AND date >= DATE('now','-? days');";
+	return @{ FlexSQL::doQuery(5,FlexSQL::getDB(),$st,shift,(config('Rules','logdays') or 90)) }[0];
 }
 print ".";
 
@@ -752,7 +752,7 @@ sub showStoreEntry {
 
 sub populateMainWin {
 	my ($dbh,$win,$reset) = @_;
-	my $frameargs = {-width => 600, -height => 440};
+	my $frameargs = {-width => 600, -height => 340};
 	if ($reset) {
 		exists $win->{rtpan} and $win->{rtpan}->destroy();
 	} else {
