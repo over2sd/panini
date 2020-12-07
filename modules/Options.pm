@@ -288,7 +288,7 @@ TARGET.
 =cut
 sub matchColor {
 	my ($model,$target) = @_;
-	my $c = $model->get(); 
+	my $c = $model->get();
 	$c eq "%main%" and $c = (FIO::config('UI','mainbg') or $MAINBG);
 	$c =~ /(#?[0-9a-fA-F]{3})([0-9a-fA-F]{3})?([0-9a-fA-F]{6})?/;
 	return 0 unless (defined $1);

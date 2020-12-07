@@ -298,7 +298,6 @@ print ".";
 
 sub selectButton { # Disables the active page's button and changes the plaque's image.
 	my ($active) = @_;
-	TGK::pushStatus("Selecting $active.");
 	main::activePage($active);
 	print "\n";
 	#print "sB $active ...";
