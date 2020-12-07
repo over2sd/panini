@@ -18,10 +18,28 @@ sub createMainWin {
 	}
 	$geo = "x${h}$geo" if defined $h;
 	$geo = "$w$geo" if defined $w;
-	my $title = "$name v. $ver";
+	my $title = main::myName(1);
 	$mw = new MainWindow(-title => "$title");
+	setBG($mw,'mainbg'); # set my background
 	$mw->geometry($geo);
-	place($mw->Label(-relief => 'sunken',-textvariable => \$status,-anchor => 'nw'),2,2,'ews',-columnspan => 10); # a status bar
+#	place($mw->Label(-relief => 'sunken',-textvariable => \$status,-anchor => 'nw', -justify => 'left'),2,2,'ews',-columnspan => 10); # a status bar
+	$mw->Label(-relief => 'sunken',-textvariable => \$status,-anchor => 'nw', -justify => 'left')->pack(-side => 'bottom', -fill => 'x', -expand => 0); # a status bar
+	$mw->protocol('WM_DELETE_WINDOW', sub {
+print "Checking for save window position..";
+		if (FIO::config('Main','savepos') or 0) {
+			my $geo = $mw->geometry;
+			print ".saving..";
+			$geo =~ m/(\d+)x(\d+)\+(\d+)\+(\d+)/;
+			my ($w,$h,$x,$y) = ($1,$2,$3,$4);
+			FIO::config('Main','width',$w);
+			FIO::config('Main','height',$h);
+			FIO::config('Main','left',$x);
+			FIO::config('Main','top',$y);
+			FIO::saveConf();
+			$mw->destroy();
+		}
+		print ".Done.";
+	});
 	return $mw;
 }
 print ".";
@@ -29,7 +47,7 @@ print ".";
 sub pushStatus {
 	my ($text,$continues) = @_;
 	if ($continues) {
-		$status .+ $text;
+		$status .= "$text";
 		return 1;
 	}
 	$status =~ s/.*\n//;
@@ -47,9 +65,25 @@ sub setFont {
 }
 print ".";
 
+sub setBG {
+	my ($w,$cn) = @_;
+	ref($w) =~ m/Tk::/ or print Common::lineNo(2);
+	print "Coloring " . ref($w) . " - ";
+	if (ref(\$cn) eq "SCALAR") {
+		print "Keyword: $cn";
+		$cn = (FIO::config('UI',$cn) or "%main%");
+		print " $cn\n";
+	}
+	($cn eq "%main%") and $cn = (FIO::config('UI','mainbg') or "#CCF");
+	$w->configure(-background => $cn);
+	return $w;
+}
+print ".";
+
 sub getGUI {
 	return $mw;
 }
+print ".";
 
 sub TFresh {
 	$mw->update();
@@ -106,6 +140,17 @@ sub place {
 	Common::showDebug('g') and main::howVerbose() > 5 and print "placeWidget: $r x $c, S:" . ($a or "'w'") . $s . "\n";
 	$w->grid(%extra);
 	return $w->grid(-sticky=>($a or 'w'),-row=>($r or 1),-column=>($c or 1));
+}
+print ".";
+
+### Destroy each child of a given frame
+sub emptyFrame {
+	my $frame = shift;
+	my @kids = $frame->children;
+	foreach my $c (@kids) {
+		$c->destroy();
+	}
+	return 1;
 }
 print ".";
 

@@ -6,6 +6,7 @@ my $cfn = "config.ini";
 my $debug = 1;
 my $dbn = 'pantry';
 my $dbs = '';
+my $active = '';
 
 $|++; # Immediate STDOUT, maybe?
 print "[I] $PROGRAMNAME v$version is running.";
@@ -13,7 +14,7 @@ flush STDOUT;
 
 sub myName {
 	my ($showver,) = @_;
-	return "$PROGRAMNAME" . ($showver ? " $version" : "");
+	return "$PROGRAMNAME" . ($showver ? " v. $version" : "");
 }
 
 use Getopt::Long;
@@ -27,6 +28,13 @@ GetOptions(
 
 sub howVerbose {
 	return $debug;
+}
+
+sub activePage {
+	my $page = shift;
+	return $active unless defined $page;
+	TGK::pushStatus("Selecting $page.");
+	$active = $page;
 }
 
 print "DB: $dbn...\n";
@@ -53,9 +61,9 @@ Common::debugAdd('g'); # Show certain GUI events
 Common::debugAdd('c'); # Show config loading
 FIO::loadConf($cfn);
 FIO::config('Debug','v',$debug);
-
-my $gui = TGK::createMainWin($PROGRAMNAME,$version,1020,620);
-my ($pw,$ph) = (800,500);
+my ($w,$h,$x,$y) = ((FIO::config('Main','width') or 1020),(FIO::config('Main','height') or 620),(FIO::config('Main','top') or 40),(FIO::config('Main','left') or 40),);
+my $gui = TGK::createMainWin($PROGRAMNAME,$version,$w,$h,$x,$y);
+my ($pw,$ph) = (800,542);
 my  ($dbh,$error);
 if (FIO::config('DB','askDB')) {
 	($dbh,$error) = TGUI::selectDB($gui);
@@ -65,8 +73,8 @@ if (FIO::config('DB','askDB')) {
 
 Sui::storeData('panewidth',$pw);
 Sui::storeData('paneheight',$ph);
-TGK::pushStatus("Loading GUI");
+TGK::pushStatus("Loading GUI..");
 TGUI::populateMainWin($dbh,$gui,0);
-TGK::pushStatus(" Ready",1);
+TGK::pushStatus(".Ready",1);
 MainLoop; # actually run the program
 FIO::config('Main','writecfg') and FIO::saveConf(); # write config on exit

@@ -99,9 +99,13 @@ sub getOpts {
 		'033' => ['c',"Show UPC on button",'buttonUPC',1],
 		'034' => ['n',"Width of columns",'maxcolw',100,20,500,1,10],
 		'035' => ['t',"Default page to load",'defaultpage'],
-		'03e' => ['c',"Show generic item in Cook tab",'showcookgeneric'],
-		'03d' => ['x',"Background for list tables",'listbg',"#EEF"],
-		'043' => ['x',"Background for letter buttons",'letterbg',"#CFC"],
+		'036' => ['c',"Show generic item in Cook tab",'showcookgeneric'],
+		'03e' => ['x',"Background for list tables",'listbg',"%main%"],
+		'03a' => ['x',"Background for main window",'mainbg',"#FDC"],
+		'03b' => ['x',"Background for buttons",'buttonbg',"#CFC"],
+		'03c' => ['x',"Background for help box",'helpbg',"%main%"],
+		'03d' => ['x',"Background for panes",'panebg',"%main%"],
+		'03f' => ['x',"Background for entry boxes",'entbg',"%main%"],
 		'042' => ['n',"How many rows per column in file lists?",'filerows',10,3,30,1,5],
 		'043' => ['t',"Color codes for gradient (comma separated)",'gradient'],
 		'044' => ['c',"Show Page Step Buttons on numeric rows",'showpstep'],
@@ -131,12 +135,18 @@ sub getOpts {
 		'870' => ['l',"Custom Text",'Custom'],
 		'87f' => ['t',"Options dialog",'options'],
 		'871' => ['t',"Sample Text for fonts",'fontsamp'],
-		'872' => ['t',"Where items are added",'itemadd'],
-		'873' => ['t',"Where prices are added",'priceadd'],
-		'874' => ['t',"Where contents are shown",'pantrylist'],
-		'875' => ['t',"Where unmet minimums are listed",'buylist'],
-		'876' => ['t',"Where recipes are priced",'recipe'],
-		'877' => ['t',"Where items are updated",'editor'],
+		'873' => ['t',"Where items are added",'itemadd'],
+		'875' => ['t',"Where prices are added",'priceadd'],
+		'877' => ['t',"Where contents are shown",'pantrylist'],
+		'879' => ['t',"Where unmet minimums are listed",'buylist'],
+		'87b' => ['t',"Where recipes are priced",'recipe'],
+		'87d' => ['t',"Where items are updated",'editor'],
+		'874' => ['t2',"H",'itemhead'],
+		'876' => ['t2',"H",'pricehead'],
+		'878' => ['t2',"H",'listhead'],
+		'87a' => ['t2',"H",'shophead'],
+		'87c' => ['t2',"H",'planhead'],
+		'87e' => ['t2',"H",'edithead'],
 		#program
 		#TODO: Custom text for each button and page heading
 
@@ -158,6 +168,7 @@ sub getDefaults {
 		['Net','thumbdir',"itn"],
 		['DB','lcgeneric',1],
 		['DB','askDB',0],
+		['UI','mainbg',"#FDC"],
 		['UI','gradient',"#F00,#F30,#F60,#F90,#FC0,#FF0,#CF0,#9F0,#6F0,#3F0,#0F0,#0F3,#0F6,#0F9,#0FC,#0FF,#0CF,#09F,#06F,#03F,#00F,#30F,#60F,#90F,#C0F,#F0F,#F0C,#F09,#F06,#F03,#EEF,#DDE,#CCD,#BBC,#AAB,#99A,#889,#778,#667,#556,#445,#334,#223,#112,#001"],
 	);
 }
@@ -190,8 +201,9 @@ sub poll {
 print ".";
 
 sub aboutMeText {
-	return "\n" . main::myName(1) . "\n \nThis program exists to allow you to catalogue your pantry, make up shopping\n"
+	return "\n" . main::myName(1) . "\n PANINI: Pantry Inventory Information system.\nThis program exists to allow you to catalogue your pantry, make up shopping\n"
 	. " lists, and track prices at different stores.\nI hope you enjoy it.\n"
+	. " You can use PLUs, UPCs in most formats, or private item numbers.\n"
 	. " If you'd like to see a feature added to this program, please visit\n"
 	. " https://github.com/over2sd/panini/issue and create a 'new issue' with the\n"
 	. " 'Feature Request' label.";

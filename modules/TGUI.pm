@@ -7,11 +7,13 @@ require Tk::Pane;
 
 
 sub Tdie {
-# attempt to save config here?
+# TODO: attempt to save config here?
 	print @_;
 	exit(0);
 }
 print ".";
+
+sub setBG { return TGK::setBG(@_); }
 
 sub explain {
 	my ($frame,$name) = @_;
@@ -23,16 +25,18 @@ print ".";
 
 ### Create a label and an entry in a row, then return the entry
 sub entryRow {
-	my ($parent,$name,$r,$c,$s,$tv,$valcmd) = @_;
+	my ($parent,$name,$r,$c,$s,$tv,$valcmd,$col) = @_;
 #print "Debug: $parent ... " . ref($parent) . " ...\n";
 	my %args = ( -row => $r, -column => $c );
 	unless (defined $parent) {
 		print Common::lineNo();
 	}
 	my $lab = $parent->Label(-text=>"$name")->grid(%args);
+	setBG($lab,$col);
 	$args{-columnspan} = $s if defined $s;
 	$args{-column}++;
 	my $ent = $parent->Entry()->grid(%args);
+	setBG($ent,'entbg');
 	$ent->configure(-textvariable=> $tv) if (defined $tv and ref($tv) eq "SCALAR");
 	$ent->configure(-validate => 'focusout', -validatecommand => $valcmd) if (defined $valcmd and ref($valcmd) eq "CODE");
 	return $ent;
@@ -55,23 +59,22 @@ sub listRow {
 
 ### Destroy each child of a given frame
 sub emptyFrame {
-	my $frame = shift;
-	my @kids = $frame->children;
-	foreach my $c (@kids) {
-		$c->destroy();
-	}
-	return 1;
+	return TGK::emptyFrame(@_);
 }
 
 ### Refresh or populate a frame with its heading and an inner frame, then return the inner frame
 sub makeMyFrame {
-	my ($of,$heading) = @_;
+	my ($of,$heading,$pane) = @_;
 	emptyFrame($of);
-	my ($pw,$ph) = (Sui::passData('panewidth'),Sui::passData('paneheight'));
+#	my ($pw,$ph) = (Sui::passData('panewidth'),Sui::passData('paneheight'));
 	my $header = $of->Label(-text => "$heading")->grid(-row => 1, -column => 1);
 	my %args = %{ Sui::passData('frameargs') };
+	$args{-height} -= 10;
 	Common::dbgMes("Making frame $heading (" . $args{-width} . "x" . $args{-height} . ")") if (main::howVerbose() > 1 and Common::showDebug('g'));
 	my $if = $of->Frame(%args);
+	foreach my $i ($if,$header) {
+		setBG($i,'panebg'); # set background to custom or main color
+	}
 	$if->grid(-row=>3,-column=>1,-columnspan=>4, -sticky => 'nse');
 	return $if;
 }
@@ -117,14 +120,17 @@ sub showPantryLoader {
 	my $size = 0;
 	my $unit = "oz";
 	selectButton("Store");
-	my $if = makeMyFrame($of,"Enter new pantry contents");
-	my $ue = entryRow($of,"UPC: ",2,1);
-	our $speedy = 0; $of->Checkbutton( -text => "Fast Entry", -variable => \$speedy, -command => sub { print "\nPressed: $speedy\n"; })->grid(-row => 2, -column => 3);
+	my $if = makeMyFrame($of,(FIO::config('Custom','itemhead') or "Enter new pantry contents"),"Store");
+	setBG($if,'panebg');
+	my $ue = entryRow($of,"UPC: ",2,1,undef,undef,undef,'panebg');
+	our $speedy = 0;
+	setBG($of->Checkbutton( -text => "Fast Entry", -variable => \$speedy, -command => sub { print "\nPressed: $speedy\n"; })->grid(-row => 2, -column => 3),'panebg');
 	sub saveItemInfo {
 		my ($but,$dbh,$upc,$name,$size,$uom,$qty,$generic,$keep,$hr,$tf) = @_;
 #		$but->configure(-state => 'disabled');
 		if ($name eq "UNNAMED") { print "Product needs name!\n"; return unless $speedy; }
 		if ($generic eq "Grocery") { print "Product needs equivalence!\n"; return unless $speedy; }
+		TGK::pushStatus("Saving item $upc/$name.");
 #		print "N: $name, S: $size, U: $uom, C: $upc... Q: $qty, G: $generic, K: $keep...\n";
 		my $st;
 		skrDebug::dump($hr) if Common::showDebug('a');
@@ -138,15 +144,17 @@ sub showPantryLoader {
 		return unless ($err);
 		emptyFrame($tf);
 		my $l = $tf->Label(-text=>"Item Saved!");
-		$l->grid(-row=>1,-column=>2);
+		$l->grid(-row=>1,-column=>2, -sticky => 'ew');
 		unless ($qty == $$hr{qty}) {
 			$st = "UPDATE counts SET qty=? WHERE upc=?;";
 			$err = FlexSQL::doQuery(2,$dbh,$st,$qty,$upc);
 			print "Records changed: $err\n";
 			return unless ($err);
 			my $lq = $tf->Label(-text=>"Quantity updated!");
-			$lq->grid(-row=>10,-column=>1);
+			$lq->grid(-row=>10,-column=>1, -sticky => 'we');
+			setBG($lq,'paneBG');
 		}
+		setBG($l,'paneBG');
 		$tf->focusPrev();
 	}
 
@@ -175,13 +183,14 @@ sub showPantryLoader {
 			my $st = "SELECT * FROM counts WHERE upc=?;";
 			$row = FlexSQL::doQuery(6,$dbh,$st,$ut);
 		}
+		TGK::pushStatus("Added one $ut.");
 		if ($speedy) {
 			$ue->delete(0, 'end'); # clear the UPC box if we're going fast.
 			emptyFrame($if); # clear the inner frame of old info fields
-			$if->Label(-text => "$ut incremented.")->grid(-row => 7, -column => 1); # assure user we did something else
+			setBG($if->Label(-text => "$ut incremented.")->grid(-row => 7, -column => 1, -sticky => 'we'),'panebg'); # assure user we did something else
 		}
 		my $UPConButton = (FIO::config('UI','buttonUPC') || 1);
-		$UPConButton || $if->Label( -text => "Working UPC: $ut")->grid(-row => 6, -column => 1, -columnspan => 2);
+		$UPConButton || setBG($if->Label( -text => "Working UPC: $ut")->grid(-row => 6, -column => 1, -columnspan => 2),'panebg');
 		my $qty = (defined $$row{qty} ? $$row{qty} : 1);
 		$st = "SELECT * FROM items WHERE upc=?;";
 		$row = FlexSQL::doQuery(6,$dbh,$st,$ut);
@@ -194,23 +203,31 @@ sub showPantryLoader {
 		$gv = $$row{generic} if defined $$row{generic};
 		if (defined $$row{keep} and $$row{keep} ne $kv) { $newkeep = 1; }
 		$kv = $$row{keep} if defined $$row{keep};
+		my $qb = setBG($if->Frame()->grid(-row=>1,-column=>4,-columnspan=>2),'panebg');
 		our $okb = $if->Button(-text=> ($UPConButton ? "Save $ut" : "Save"), -state => 'disabled',)->grid(-row=>6,-column=>5);
-		our $ne = entryRow($if,"Name: ",1,1,undef,\$nv,\&myValidate);
-		our $qe = $if->Entry(-textvariable=>\$qty,-validate=>'focusout',-validatecommand=> \&myValidate, -width => 4, );
-		our $ke = $if->Entry(-textvariable=>\$kv,-validate=>'focusout',-validatecommand=> \&myValidate, -width => 4, );
-		our $se = entryRow($if,"Size: ",2,1,undef,\$sv,\&myValidate);
+		our $ne = entryRow($if,"Name: ",1,1,undef,\$nv,\&myValidate,'panebg');
+		our $qe = $qb->Entry(-textvariable=>\$qty,-validate=>'focusout',-validatecommand=> \&myValidate, -width => 4, );
+		our $ke = $qb->Entry(-textvariable=>\$kv,-validate=>'focusout',-validatecommand=> \&myValidate, -width => 4, );
+		our $se = entryRow($if,"Size: ",2,1,undef,\$sv,\&myValidate,'panebg');
 		our $ce = $if->BrowseEntry(-width=>5,-variable=>\$uv,-validate=>'focusout',-validatecommand =>\&myValidate);
-		our $ge = entryRow($if,"Item Equivalence: ",4,1,undef,\$gv,\&myValidate);
+		our $ge = entryRow($if,"Item Equivalence: ",4,1,undef,\$gv,\&myValidate,'panebg');
+		foreach my $e ($qe,$ke,$ce,$ge) {
+			setBG($e,'entbg');
+		}
 		$okb->configure(-command=> sub {
 			$ne->focus if ($nv eq "$defname");
 			$ge->focus if ($gv eq "$defgen");
 			return if ($nv eq "$defname" or $gv eq "$defgen");
 			$ue->delete(0, 'end');
 			$newkeep and Sui::storeData('minchanged',time());
+# TODO: make this not change the width of the frame.
 			saveItemInfo($okb,$dbh,$ut,$nv,$sv,$uv,$qty,$gv,$kv,$row,$if);
 			$ue->focus();
 		});
 		our $ufb = UPC::makeUPCbutton($if,6,4,\$ut,\&formatInfo,"Populate");
+		foreach my $b ($okb,$ufb) {
+			setBG($b,'buttonbg');
+		}
 		sub myValidate {
 			my ($pv,$av,$cv) = @_;
 			return 0 if ($pv eq $cv); # no change made
@@ -219,8 +236,9 @@ sub showPantryLoader {
 		}
 		$ne->delete(0,'end');
 		$ne->insert(0,$$row{name});
-		our $ql = $if->Label(-text=>"Qty: ");
-		$if->Label(-text=>"/")->grid(-row=>1,-column=>5);
+		our $ql = $qb->Label(-text=>"Qty: ");
+		setBG($ql,'panebg');
+		setBG($qb->Label(-text=>"/")->grid(-row=>1,-column=>3),'panebg');
 		sub formatInfo { return formatUPCinfo($_[0],$ne,$se,$ge,$ce,$if); }
 		$ce->insert('end','oz');
 		$ce->insert('end','ml');
@@ -231,12 +249,13 @@ sub showPantryLoader {
 		$ce->insert('end','lb');
 		$ce->insert('end','L');
 		$ce->grid(-row=>2,-column=>3);
-		$ql->grid(-row=>1,-column=>3);
-		$qe->grid(-row=>1,-column=>4);
-		$ke->grid(-row=>1,-column=>6);
+		$ql->grid(-row=>1,-column=>1);
+		$qe->grid(-row=>1,-column=>2);
+		$ke->grid(-row=>1,-column=>4);
 		my $changed = 0;
 		$ne->focus();
 	}
+	setBG($if->Label(-text=>"")->grid(-row=>10,-column=>1,-columnspan=>5),'panebg');
 	TGK::bindEnters($ue,sub { incrementUPC($ue,$if); });
 	$ue->focus;
 	explain($if);
@@ -247,16 +266,17 @@ print ".";
 Sui::storeData('bnames',["Cook","Edit","Buy","Store","Plan","Price","Options","About","Help"]);
 sub showButtonPanel {
 	my ($parent,$dbh) = @_;
-	my $if = $parent->Frame(-height => 510, -relief=>'raised', -bd => 2)->grid(-row=>1,-column=>1,-sticky=>"nws", -rowspan => 2, -ipady => 1, -pady => 1);
-	my $bf = $if->Frame(-relief=>'groove', -bd => 2, -width => 10);
+#	my $if = $parent->Frame(-height => 510)->grid(-row=>1,-column=>1,-sticky=>"nws", -rowspan => 2, -ipady => 1, -pady => 1);
+	my $if = $parent->Frame(-height => 510)->pack(-side => 'left', -fill => 'y', -expand => 1, -anchor => 'nw');
+	my $bf = $if->Frame(-width => 10);
 	my %butpro = ( -fill=>'x', -padx=>2, -pady=>2);
 	$bf->Label(-text=>"Tasks:",-width=>7)->pack(%butpro);
-	my $loadb = $bf->Button(-text=>"Store",-command=>sub { showPantryLoader($parent); })->pack(%butpro);
-	my $editb = $bf->Button(-text=>"Edit",-command=>sub { showItemDB($parent); })->pack(%butpro);
-	my $prodb = $bf->Button(-text=>"Price",-command=>sub { showProductInfo($parent); })->pack(%butpro);
-	my $planb = $bf->Button(-text=>"Plan",-command=>sub { showRecipeProposal($parent); })->pack(%butpro);
-	my $listb = $bf->Button(-text=>"Buy",-command=>sub { showShoppingList($parent); })->pack(%butpro);
-	my $contb = $bf->Button(-text=>"Cook",-command=>sub { showPantryContents($parent); })->pack(%butpro);
+	my $loadb = $bf->Button(-text=>(FIO::config('Custom','itemadd') or "Store"),-command=>sub { showPantryLoader($parent); })->pack(%butpro);
+	my $editb = $bf->Button(-text=>(FIO::config('Custom','editor') or "Edit"),-command=>sub { showItemDB($parent); })->pack(%butpro);
+	my $prodb = $bf->Button(-text=>(FIO::config('Custom','priceadd') or "Price"),-command=>sub { showProductInfo($parent); })->pack(%butpro);
+	my $planb = $bf->Button(-text=>(FIO::config('Custom','recipe') or "Plan"),-command=>sub { showRecipeProposal($parent); })->pack(%butpro);
+	my $listb = $bf->Button(-text=>(FIO::config('Custom','buylist') or "Buy"),-command=>sub { showShoppingList($parent); })->pack(%butpro);
+	my $contb = $bf->Button(-text=>(FIO::config('Custom','pantrylist') or "Cook"),-command=>sub { showPantryContents($parent); })->pack(%butpro);
 	$bf->Label(-text => " ")->pack(%butpro);
 	Sui::storeData('blogos',[$if->Photo(-file => "img/cook.gif"),$if->Photo(-file => "img/edit.gif"),$if->Photo(-file => "img/buy.gif"),$if->Photo(-file => "img/store.gif"),$if->Photo(-file => "img/plan.gif"),$if->Photo(-file => "img/price.gif"),$if->Photo(-file => "img/opts.gif"),$if->Photo(-file => "img/info.gif"),$if->Photo(-file => "img/help.gif")]);
 	Sui::storeData('bplaq',$if->Label(-image => @{ Sui::passData('blogos') }[0])->grid(-row=>1,-column=>1,-rowspan => 2));
@@ -267,13 +287,19 @@ sub showButtonPanel {
 	my $sysf = $if->Frame()->grid(-row=>2,-column=>2);
 	push(@bgroup,$sysf->Button(-image=>$if->Photo(-file => "img/Tango-gear.gif"), -command => sub { showOptionsBox($parent); } )->grid(-row=>1,-column=>1)); # TODO: Add options gear at bottom of frame
 	push(@bgroup,$sysf->Button(-image=>$if->Photo(-file => "img/Tango-info.gif"), -command => sub { showAboutBox($parent); } )->grid(-row=>1,-column=>2)); # TODO: Add an about button to bottom of frame
-	push(@bgroup,$sysf->Button(-image=>$if->Photo(-file => "img/Tango-question.gif"), -state => 'disabled')->grid(-row=>1,-column=>3)); # TODO: Add a help button to bottom of frame
+	push(@bgroup,$sysf->Button(-image=>$if->Photo(-file => "img/Tango-question.gif"), -command => sub { showHelp($parent); })->grid(-row=>1,-column=>3)); # TODO: Add a help button to bottom of frame
 	Sui::storeData('bgroup',\@bgroup);
+	setBG($if,'panebg'); # set background to pane or main color
+	foreach my $b ($bf,@bgroup) {
+		setBG($b,'buttonbg'); # set backgroud to button or main color
+	}
 }
 print ".";
 
 sub selectButton { # Disables the active page's button and changes the plaque's image.
 	my ($active) = @_;
+	TGK::pushStatus("Selecting $active.");
+	main::activePage($active);
 	print "\n";
 	#print "sB $active ...";
 	my @bnames = @{ Sui::passData('bnames') };
@@ -283,7 +309,7 @@ sub selectButton { # Disables the active page's button and changes the plaque's 
 		if ($active eq $bnames[$i]) {
 			Common::dbgMes("Selecting $active.") if (main::howVerbose() > 0 and Common::showDebug('g'));
 			$bgroup[$i]->configure(-state => 'disabled');
-			$plaque->configure(-image => @{ Sui::passData('blogos') }[$i]);
+			$plaque->configure(-image => getLogo($bnames[$i]));
 		} else {
 			print "Enabling $bnames[$i]!\n" if ($bgroup[$i]->cget('-state') eq "disabled" and main::howVerbose() > 2 and Common::showDebug('g'));
 			$bgroup[$i]->configure(-state => 'normal');
@@ -317,6 +343,7 @@ sub setQty {
 	return -1 if ($qty < 0); # prevent negative onhands
 	my $st = "UPDATE counts SET qty=? WHERE upc=?;";
 	my $err = FlexSQL::doQuery(2, Sui::passData('db') ,$st, $qty, $upc);
+	$err == 1 and TGK::pushStatus("Count set to $qty for $upc.");
 	#print "Affected: $err\n";
 	return $err;
 }
@@ -357,6 +384,7 @@ sub showOptionsBox { # For changing options
 	my $of = $parent->{rtpan};
 	emptyFrame($of);
 	my ($pw,$ph) = (Sui::passData('panewidth'),Sui::passData('paneheight'));
+	print "sOB: $parent, $of\n";
 	Options::mkOptBox($of,$pw,$ph,Sui::getOpts());
 }
 print ".";
@@ -382,11 +410,12 @@ sub showPantryContents { # For cooking/reducing inventory
 	selectButton("Cook");
 	my $pxwidth = (FIO::config('UI','maxcolw') or 100);
 	my $of = $parent->{rtpan};
-	my $if = makeMyFrame($of,"Contents of Pantry");
+	my $if = makeMyFrame($of,(FIO::config('Custom','listhead') or "Contents of Pantry"));
 	my %args = %{ Sui::passData('frameargs') };
 	my %qtyos;
 	my $sf = $if->Scrolled('Frame', -scrollbars => 'osoe', %args, -width => $args{-width} * 0.95)->pack(-fill => 'both',);
 	$sf->Label(-text => "Item to use up:")->grid(-row => 1, -column => 1);
+	setBG($sf,'listbg');
 	my $dq = 0;
 	my $de = $sf->Entry(-validate => 'all', -validatecommand => sub { $dq = 0; return 1; } )->grid(-row => 1, -column => 2);
 	my $ol = $sf->Label(-text => " ")->grid(-row => 1, -column => 4);
@@ -422,7 +451,7 @@ sub showProductInfo { # for pricing products in the store
 	my ($parent,) = @_;
 	my $of = $parent->{rtpan};
 	selectButton("Price");
-	my $if = makeMyFrame($of,"Pricing Tool");
+	my $if = makeMyFrame($of,(FIO::config('Custom','pricehead') or "Pricing Tool"));
 	my ($r,$c) = (1,1);
 	my %args = %{ Sui::passData('frameargs') };
 	unless (defined $parent) {
@@ -435,7 +464,8 @@ sub showProductInfo { # for pricing products in the store
 	our $de = $if->Entry(-textvariable => \$dv)->grid(-row => 2, -column => 5);
 	my $sn = $if->Label(-text=>"Unnamed Store")->grid( -row => 2, -column => 3);
 	my $pnl = $if->Label(-text => "Unknown Product")->grid(-row => 3,-column => 3, -columnspan => 2);
-	my $psw = $if->Scrolled('Frame', -scrollbars => 'ose', -width => $args{-width} * 0.95, -height => 300)->grid(-sticky => 'ew', -row => 4, -column => 1, -columnspan => 5);
+	my $psw = $if->Scrolled('Frame', -scrollbars => 'ose', -width => $args{-width} * 0.95, -height => $args{-height} * 0.95)->grid(-sticky => 'ew', -row => 4, -column => 1, -columnspan => 5);
+	setBG($psw,'listbg');
 	my $ptable = $psw->Frame()->pack(-fill => 'both');
 	my $se = $if->Entry(-textvariable=> \$si)->grid( -row => 2, -column => 2 );
 	$dv = Common::datenow();
@@ -491,7 +521,7 @@ sub showProductInfo { # for pricing products in the store
 		}
 		my $ist = "INSERT INTO prices(upc,store,price,date) VALUES(?,?,?,?);";
 		(defined $dbh or $dbh = FlexSQL::getDB());
-		FlexSQL::doQuery(2,$dbh,$ist,$uv,$si,$pv,$dv);
+		FlexSQL::doQuery(2,$dbh,$ist,$uv,$si,$pv,$dv) and TGK::pushStatus("Added price $pv for $uv at store $si.");
 		makePriceRow($target,1,\$r,$si,$pv,$dv);
 		$but->configure(-state => 'disabled');
 		$ue->focus();
@@ -505,13 +535,13 @@ print ".";
 
 sub getProdPrices {
 	my $st = "SELECT store,price,date FROM prices WHERE upc=? ORDER BY date DESC LIMIT ?;";
-	return FlexSQL::doQuery(4,FlexSQL::getDB(),$st,shift,(config('Rules','shortcount') or 25));
+	return FlexSQL::doQuery(4,FlexSQL::getDB(),$st,shift,(FIO::config('Rules','shortcount') or 25));
 }
 print ".";
 
 sub getAvgPrice {
-	my $st = "SELECT AVG(price) AS mean FROM prices WHERE upc=? AND date >= DATE('now','-? days');";
-	return @{ FlexSQL::doQuery(5,FlexSQL::getDB(),$st,shift,(config('Rules','logdays') or 90)) }[0];
+	my $st = "SELECT AVG(price) AS mean FROM prices WHERE upc=? AND date >= DATE('now',?);";
+	return @{ FlexSQL::doQuery(5,FlexSQL::getDB(),$st,shift,"-" . (FIO::config('Rules','logdays') or 90) . " days") }[0];
 }
 print ".";
 
@@ -544,6 +574,7 @@ sub makePriceRow {
 		print "B: " . join(',',@_);
 		$rb->destroy(); # remove this button.
 	} )->grid(-row => $$r, -column => 5) if $showrembut;
+	$t->gridColumnconfigure(1,-weight=>10);
 }
 print ".";
 
@@ -655,13 +686,14 @@ sub showShoppingList { # For buying items that are getting low
 	my $of = $parent->{rtpan};
 	emptyFrame($of);
 	selectButton("Buy");
-	my $header = $of->Label(-text => "Shopping List")->grid(-row => 1, -column => 2);
+	my $header = $of->Label(-text => (FIO::config('Custom','shophead') or "Shopping List"))->grid(-row => 1, -column => 2);
 	my @list = getDeficits(getMinimums());
-	my $if = $of->Frame()->grid(-row => 1, -column => 1, -columnspan => 7);
+	my $if = $of->Frame()->grid(-row => 2, -column => 1, -columnspan => 7);
 	$args{-width} *= 0.95;
 	my $sf = $if->Scrolled('Frame', -scrollbars => 'osoe', %args)->pack(-fill => 'both',);
+	setBG($sf,'listbg');
 	listToBuys($sf,@list);
-	showAddMinButton($of,3); # add a minimum for items not yet in DB for keeping on hand.
+	showAddMinButton($of,4); # add a minimum for items not yet in DB for keeping on hand.
 	explain($if);
 }
 print ".";
@@ -670,13 +702,14 @@ sub addPriceList { # For showing a price history and analysis
 	my ($parent,$upc,$name) = @_;
 	my %args = %{ Sui::passData('frameargs') };
 	emptyFrame($parent);
+	$parent->grid(-sticky => 'ew');
 	my $header = $parent->Label(-text => "Price List")->grid(-row => 1, -column => 2);
 	Common::dbgMes("Grabbing prices for $name ($upc)...") if Common::showDebug('d');
 	my ($r,$c) = (2,1);
 	addPriceListHeads($parent,$r);
 	# get avg price
-	my $list = getProdPrices($upc); # get all price info for last 25 entries
-	my $m90 = getAvgPrice($upc); # get avg price
+	my $list = getProdPrices($upc); # get all price info for last 25 entries (user alterable)
+	my $m90 = getAvgPrice($upc); # get avg price for 90 days (user alterable)
 	my $m25 = 0;
 	my $c25 = 0;
 	my $lowind = -1;
@@ -701,6 +734,7 @@ sub addPriceList { # For showing a price history and analysis
 		my $c2 = ($d2 > 0 ? 1 : 2); # for each avg
 		$c1 = 10 if $lowind == $j; # blue for lowest
 		my $lm = ($lowind == $j ? "*" : "");
+		# TODO: Make colored text here
 		makePriceRow($parent,0,\$r,@$p);
 		$parent->Label(-text => "$lm $d1/$d2 $lm")->grid(-row => $r, -column => 4);
 		$j++;
@@ -731,6 +765,7 @@ sub showStoreEntry {
 		if (FlexSQL::doQuery(2,$dbh,$cst,"DELETE",$lv)) {
 			$cst = "SELECT store FROM stores WHERE name=?;";
 			$sid = FlexSQL::doQuery(7,$dbh,$cst,"DELETE"); $sid = $$sid[0];
+			TGK::pushStatus("Added store $nv.");
 			$cst = "UPDATE stores SET name=? WHERE store=?;";
 			FlexSQL::doQuery(2,$dbh,$cst,$nv,$sid);
 			getStoreNames(FlexSQL::getDB(),1);
@@ -752,7 +787,7 @@ sub showStoreEntry {
 
 sub populateMainWin {
 	my ($dbh,$win,$reset) = @_;
-	my $frameargs = {-width => 600, -height => 340};
+	my $frameargs = {-width => 594};
 	if ($reset) {
 		exists $win->{rtpan} and $win->{rtpan}->destroy();
 	} else {
@@ -767,10 +802,12 @@ sub populateMainWin {
 		}
 		Sui::storeData('db',$dbh);
 	}
-	my $of = $win->Frame(-relief=>"raised", %$frameargs);
+	my $of = $win->Frame(%$frameargs);
+	setBG($of,'panebg');
 #	$of->configure(-scrollbars => 'e');
 	$win->{rtpan} = $of;
-	$of->grid(-row=>1,-column=>2,-columnspan=>8,-sticky=>"nsw");
+#	$of->grid(-row=>1,-column=>2,-columnspan=>8,-sticky=>"nsw");
+	$of->pack(-side => 'right', -fill => 'both', -expand => 1);
 	showButtonPanel($win,$dbh);
 	showDefaultPage() # try to load default page
 	and showPantryLoader($win); # if default page fails...
@@ -793,11 +830,12 @@ sub showItemDB {
 	my $size = 0;
 	my $unit = "oz";
 	selectButton("Edit");
-	my $if = makeMyFrame($of,"Edit item information");
+	my $if = makeMyFrame($of,(FIO::config('Custom','edithead') or "Edit item information"));
 	my $ue = entryRow($of,"UPC: ",2,1);
 	$if->configure(-height => Sui::passData('paneheight') * 0.5);
-	my $pf = $of->Frame(-width => Sui::passData('panewidth'), -height => Sui::passData('paneheight') * 0.5)->grid(-row => 5, -column => 1, -columnspan => 6);
-	$of->Button( -text => "Fetch Info", -command => sub { print "\nWhen this is coded, it'll try to pull item info from a UPC database. For now, enjoy the pretty status button.\n"; $if->Button(-text => "Not yet coded")->pack(-anchor => 'w'); })->grid(-row => 2, -column => 3);
+	my $pf = $of->Frame(-width => Sui::passData('panewidth'), -height => Sui::passData('paneheight') * 0.48)->grid(-row => 5, -column => 1, -columnspan => 6);
+	setBG($pf,'panebg');
+	setBG($of->Button( -text => "Fetch Info", -command => sub { print "\nWhen this is coded, it'll try to pull item info from a UPC database. For now, enjoy the pretty status button.\n"; $if->Button(-text => "Not yet coded")->pack(-anchor => 'w'); })->grid(-row => 2, -column => 3),'buttonbg');
 	# get list of items that are UNNAMED and Grocery
 	# count items and create a progress bar (fetching from the API is a bit slow) and a status label
 	# for each item: {
@@ -812,7 +850,7 @@ sub showItemDB {
 		# update the progress bar
 		# go to next unnamed item
 	#}
-	$of->Button( -text => "Review Autodata", -command => sub { print "\nWhen this is coded, it'll try to pull items from the database that haven't been reviewed. For now, enjoy the pretty status button.\n"; $if->Button(-text => "Not yet coded")->pack(-anchor => 'w'); })->grid(-row => 2, -column => 4);
+	setBG($of->Button( -text => "Review Autodata", -command => sub { print "\nWhen this is coded, it'll try to pull items from the database that haven't been reviewed. For now, enjoy the pretty status button.\n"; $if->Button(-text => "Not yet coded")->pack(-anchor => 'w'); })->grid(-row => 2, -column => 4),'buttonbg');
 	# grab autodata generic LIKE "Auto%"
 	# create an inner frame with a scrollbar
 	# create a header row
@@ -847,6 +885,7 @@ sub showItemDB {
 			$st = "UPDATE counts SET qty=? WHERE upc=?;";
 			$err = FlexSQL::doQuery(2,$dbh,$st,$qty,$upc);
 			print "Records changed: $err\n";
+			$err and TGK::pushStatus("Count for $upc set to $qty.");
 			return unless ($err);
 			my $lq = $tf->Label(-text=>"Quantity updated!");
 			$lq->grid(-row=>1,-column=>1);
@@ -925,6 +964,7 @@ sub showItemDB {
 	}
 	# bind enter here to a function that either adds one to the onhand,
 	#	or if not found, pulls open the description entries below for saving.
+	# TODO: Make this not alter the width of the frame.
 	TGK::bindEnters($ue,sub { editUPC($ue,$if,$pf); });
 	$ue->focus;
 	explain($if);
@@ -937,15 +977,20 @@ sub showRecipeProposal {
 	my ($of,$rowindex,$addbutton) = ($parent->{rtpan},0,undef);
 	emptyFrame($of);
 	selectButton("Plan");
-	my $header = $of->Label(-text => "Recipe Worksheet")->grid(-row => 1, -column => 2);
+	my $header = $of->Label(-text => (FIO::config('Custom','planhead') or "Recipe Worksheet"))->grid(-row => 1, -column => 2);
 	our $rframe = $of->Scrolled('Frame',-scrollbars=>'osoe', -width => $args{-width}, -height => $args{-height} * 0.85)->grid(-row => 2,-column => 1,-columnspan => 5, -sticky => "nsw");
+	setBG($rframe,'listbg');
 	our (@rows,@costs,$buttons);
 	my $buttonrow = $of->Frame()->grid(-row => 3,-column => 1,-columnspan => 5);
+	setBG($buttonrow,'panebg');
 	my $costl = $buttonrow->Label(-text => "Cost:")->grid(-row=>1,-column=>1);
 	my $costo = $buttonrow->Label(-text => "\$0.00")->grid(-row=>1,-column=>2);
 	$addbutton = $buttonrow->Button(-text=>"Add Ingredient",-command=>sub { addIngredient($rframe,$addbutton,\$rowindex,$buttons,$costo); })->grid(-row=>1,-column=>3);
 	my $buybutton = $buttonrow->Button(-text=>"Buy Ingredients",-state => 'disabled', -command=>sub { print "TODO: code these (buy)"; })->grid(-row=>1,-column=>4);
 	my $recsavbut = $buttonrow->Button(-text=>"Save",-state => 'disabled', -command=>sub { print "TODO: code these (save)"; })->grid(-row=>1,-column=>5);
+	foreach my $b ($addbutton,$buybutton,$recsavbut) {
+		setBG($b,'buttonbg');
+	}
 
 	sub addIngredient {
 		my ($target,$daib,$r,$bbox,$out) = @_;
@@ -1026,7 +1071,8 @@ skrDebug::dump($ir,"Row1",1);
 			my $stc = "INSERT INTO counts (upc,qty) VALUES (?,?);";
 			my $dbh = FlexSQL::getDB();
 			if (FlexSQL::doQuery(2,$dbh,$sti,$i{name},$i{unit},$i{size},$i{generic},$i{keep},$i{upc})) {
-				return FlexSQL::doQuery(2,$dbh,$stc,$i{upc},$i{qty});
+				my $err = FlexSQL::doQuery(2,$dbh,$stc,$i{upc},$i{qty});
+				TGK::pushStatus("Added Generic $i{generic} to Items DB.");
 			}
 			return 0;
 		}
@@ -1063,6 +1109,7 @@ skrDebug::dump($ir,"Row1",1);
 				}
 			}
 		}
+		setBG($gbbox,'listbg');
 		$ge->focus();
 		return 1;
 	}
@@ -1099,6 +1146,7 @@ skrDebug::dump($r,"Row",1);
 			});
 		$rows[$$r]->Button(-text=>" - ", -command => sub { $costs[$rowind] = 0.00; $rows[$rowind]->destroy(); sumCosts($data{out}); })->grid(-row=>1,-column=>7); # Remove
 		sumCosts($data{out});
+		TGK::pushStatus("Ingredient $data{name} added to plan");
 		$$r++; 		# $$r++ if makeIngredient succeeds.
 	}
 	explain($rframe,"Plan");
@@ -1116,6 +1164,48 @@ sub getProdName {
 	$$row{name} = "unknown" unless defined $$row{name};
 	return $$row{name} . "  (" . $$row{generic} . ")" if $showgen;
 	return $$row{name};
+}
+print ".";
+
+sub showHelp {
+	my $parent = shift;
+	my $page = main::activePage();
+	my $of = $parent->{rtpan};
+	my $t = place($of->Frame(),1,1,'n',-columnspan => 7);
+	place($t->Label(-image =>$parent->Photo(-file => "img/Tango-question.gif")),1,1);
+	for ($page) {
+		if (/Store/) {
+			place($t->Label(-text => "The UPC entry takes a UPC, PLU, or private product code."),1,2);
+			place($t->Label(-text => "The Fast Entry checkbox allows you to increase UPC counts without entering information about each one."),2,2);
+			place($t->Label(-text => "Once a UPC is entered, if Fast Entry is off, you can enter information about the item:"),3,1,'w',-columnspan => 3);
+			place($t->Label(-text => "Name"),4,2);
+			place($t->Label(-text => "Generic"),5,2);
+			place($t->Label(-text => "Quantity/Keep"),6,2);
+			place($t->Label(-text => "Size & UOM"),7,2);
+			place($t->Label(-text => ""),8,2);
+			place($t->Label(-text => ""),9,2);
+			place($t->Label(-text => "Populate button"),10,2);
+			place($t->Label(-text => "Save button"),11,2);
+		} else {
+			place($t->Label(-text => "Help is not available for this page. Sorry."),1,2);
+		}
+	}
+	setBG(place($t->Button(-text => "Close", -command => sub { $t->destroy(); }),100,7),'buttonbg');
+	setBG($t,'helpbg');
+}
+print ".";
+
+sub place {
+	return TGK::place(@_);
+}
+print ".";
+
+sub getLogo {
+	my $n = shift;
+	my @bnames = @{ Sui::passData('bnames') };
+	my @bgroup = @{ Sui::passData('bgroup') };
+	return @{ Sui::passData('blogos') }[Common::findIn($n,@bnames)] or undef;
+
 }
 print ".";
 

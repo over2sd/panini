@@ -38,3 +38,6 @@ Panini.pnproj
 *.pnps
 *.dbl
 *.pnproj
+/config.ini
+/external/*
+/img/*.png

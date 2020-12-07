@@ -8,6 +8,8 @@ print __PACKAGE__;
 
 use FIO qw( config );
 
+my $MAINBG = "#CCF";
+
 =item mkOptBox GUI HASH
 
 Builds and displays a dialog box of options described in provided HASH.
@@ -16,6 +18,7 @@ Builds and displays a dialog box of options described in provided HASH.
 sub mkOptBox {
 	# need: guiset (for setting window marker, so if it exists, I can present the window instead of recreating it?)
 	my ($target,$w,$h,%opts) = @_;
+print "mOB: $target\n";
 	my $changes = 0;
 	my $pos = 1;
 	my $spos = 1;
@@ -23,7 +26,7 @@ sub mkOptBox {
 	my $running = 1;
 	my $toSave = {};
 	my $nb = $target->Scrolled('Frame', -scrollbars => 'osoe',-width => $w, -height => $h - 50, )->grid(-row=>2,-column=>1);
-	$nb->Label(-text => "Options:")->grid(-row=>$pos++,-column => 1);
+	$nb->Label(-text => (FIO::config('Custom','options') or "Options") . ":")->grid(-row=>$pos++,-column => 1);
 	my $vb;# = PGK::labelBox($optbox,"Options",'optlist','v',boxfill => 'both', boxex => 1);
 	my %args;
 #	my @tablist;
@@ -40,7 +43,7 @@ sub mkOptBox {
 	my $spacer = $buttons->Label(-text => " ")->pack(-fill => 'x', -expand => 1, -side=>'left');
 	my $cancelB = $buttons->Button(-text => "Cancel", -command => sub { TGUI::emptyFrame($target); })->pack(-side=>'left');
 	my $saveB = $buttons->Button(-text => "Save", )->pack(-side=>'left');
-	$saveB->configure(-command => sub { saveFromOpt($saveB,[$target,$toSave]); });
+	$saveB->configure(-command => sub { saveFromOpt($saveB,[$target,$toSave,$target->parent]); });
 	$curtab = $nb; # until/unless tabs implemented, set current tab to main page
 	foreach my $k (sort keys %opts) {
 		my @o = @{ $opts{$k} };
@@ -225,7 +228,8 @@ print ".";
 sub saveFromOpt {
 	my ($caller,$args) = @_;
 	$caller->configure(-state => 'disabled');
-	my ($parent,$href) = @$args;
+	my ($parent,$href,$grandparent) = @$args;
+	print "sFO: $parent, $grandparent\n";
 	foreach my $s (keys %$href) {
 #		print "Section $s:\n";
 		foreach (keys %{ $$href{$s} }) {
@@ -239,7 +243,7 @@ sub saveFromOpt {
 #	formatTooltips(); # set tooltip format, in case it was changed.
 	TGK::emptyFrame($parent);
 	place($parent->Label(-text => "Options applied."),1,1);
-	place($parent->Button(-text => "Reload Options pane", command => sub { TGUI::showOptionsBox($parent); }),2,1);
+	place($parent->Button(-text => "Reload Options pane", -command => sub { TGUI::showOptionsBox($grandparent); }),2,1);
 
 =item Comment
 
@@ -284,7 +288,9 @@ TARGET.
 =cut
 sub matchColor {
 	my ($model,$target) = @_;
-	my $c = $model->get(); $c =~ /(#?[0-9a-fA-F]{3})([0-9a-fA-F]{3})?([0-9a-fA-F]{6})?/;
+	my $c = $model->get(); 
+	$c eq "%main%" and $c = (FIO::config('UI','mainbg') or $MAINBG);
+	$c =~ /(#?[0-9a-fA-F]{3})([0-9a-fA-F]{3})?([0-9a-fA-F]{6})?/;
 	return 0 unless (defined $1);
 	$c = (defined $3 ? "$1$2$3" : (defined $2 ? "$1$2" : $1));
 	return $target->configure(-background => $c);
@@ -295,6 +301,7 @@ sub buildColorRow {
 	my ($box,$options,$applyBut,$lab,$s,$key,$col,$change,$pos) = @_;
 	labelRow($box,$lab,$pos,1);
 	my $e = $box->Entry(-text => "$col");
+	$col eq "%main%" and $col = (FIO::config('UI','mainbg') or $MAINBG);
 	my $b = $box->Button(-text => " Select ", -background => "$col");
 	place($e,$pos,3);
 	place($b,$pos,4,'w',-columnspan => 3);
