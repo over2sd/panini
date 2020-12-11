@@ -28,7 +28,8 @@ sub getDB {
 	if (defined $dbh) {
 		(main::howVerbose() > 8) && print "\n[I] Returning existing DB handle...";
 		return $dbh;
-		}
+	}
+	skrDebug::dump(\@_,"Args to getDB:");
 	my ($dbtype) = shift;
 	if ($dbtype eq "0") { return undef; } # flag for not creating DB if not available
 	unless (defined $dbtype) { $dbtype = FIO::config('DB','type'); } # try to save

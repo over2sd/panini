@@ -726,7 +726,7 @@ sub sequenceHoA {
 print ".";
 
 sub lineNo {
-	my $depth = shift;
+	my ($depth,$v) = @_;
 	$depth = 1 unless defined $depth;
 	use Carp qw( croak );
 	my @loc = caller($depth);
@@ -740,7 +740,11 @@ sub lineNo {
 	} else {
 		$sub = "(MAIN)";
 	}
-	return qq{ at line $line of $sub in $file.\n };
+	if ($v == 1) {
+		return qq{ $sub:$line };
+	} else {
+		return qq{ at line $line of $sub in $file.\n };
+	}
 }
 print ".";
 

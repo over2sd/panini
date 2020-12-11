@@ -83,10 +83,10 @@ sub getOpts {
 		'010' => ['l',"Fonts",'Font'],
 		'011' => ['f',"Major heading font/size: ",'bighead',"Arial-24"],
 		'012' => ['f',"General font/size: ",'body'],
-		'013' => ['f',"Navigation font/size: ",'button'],
+		'013' => ['f',"Navigation font/size: ",'button'], # buttonfont
 		'014' => ['f',"Special font/size: ",'special'], # for lack of a better term
-		'015' => ['f',"Progress font/size: ",'progress'],
-		'016' => ['f',"Progress Button font/size: ",'progbut'],
+		'015' => ['f',"Entry font/size: ",'entry'],
+		'016' => ['f',"Listing font/size: ",'listfont'],
 		'017' => ['f',"Heading font/size: ",'head'],
 		'018' => ['f',"Sole-entry font/size: ",'bigent'],
 
@@ -113,13 +113,13 @@ sub getOpts {
 		# hintback
 
 		'050' => ['l',"Database",'DB'],
-		'051' => ['t',"Connection",'type'],
+		'051' => ['t',"Connection",'type'], # TODO: Change to combobox
 		'052' => ['c',"Ask before connecting",'askDB'],
 		'053' => ['c2',"Store FL OZ as OZ",'unifyoz',1],
 		'054' => ['c3',"Generics stored lowercase",'lcgeneric',0],
 		'055' => ['t',"Server",'host'],
 		'056' => ['t',"Username",'uname'],
-		#server,uname,password,host,
+		#dbname,pwp,
 
 		'060' => ['l',"Inventory Management",'Rules'],
 		'061' => ['c',"Show barely fulfilled items on restock list",'beloworat',0],
@@ -135,18 +135,19 @@ sub getOpts {
 		'870' => ['l',"Custom Text",'Custom'],
 		'87f' => ['t',"Options dialog",'options'],
 		'871' => ['t',"Sample Text for fonts",'fontsamp'],
+		'872' => ['h',"","","Button","","Heading"],
 		'873' => ['t',"Where items are added",'itemadd'],
 		'875' => ['t',"Where prices are added",'priceadd'],
 		'877' => ['t',"Where contents are shown",'pantrylist'],
-		'879' => ['t',"Where unmet minimums are listed",'buylist'],
+		'879' => ['t',"Where unmet mins are listed",'buylist'],
 		'87b' => ['t',"Where recipes are priced",'recipe'],
 		'87d' => ['t',"Where items are updated",'editor'],
-		'874' => ['t2',"H",'itemhead'],
-		'876' => ['t2',"H",'pricehead'],
-		'878' => ['t2',"H",'listhead'],
-		'87a' => ['t2',"H",'shophead'],
-		'87c' => ['t2',"H",'planhead'],
-		'87e' => ['t2',"H",'edithead'],
+		'874' => ['t2',"",'itemhead'],
+		'876' => ['t2',"",'pricehead'],
+		'878' => ['t2',"",'listhead'],
+		'87a' => ['t2',"",'shophead'],
+		'87c' => ['t2',"",'planhead'],
+		'87e' => ['t2',"",'edithead'],
 		#program
 		#TODO: Custom text for each button and page heading
 
@@ -161,14 +162,17 @@ print ".";
 sub getDefaults {
 	return (
 		['Main','savepos',1],
+		['Main','width',975],
+		['Main','height',640],
 		['UI','GUI','tk'],
 		['Font','bighead',"Verdana 24"],
+		['Font','button',"Verdana 12"],
 		['Main','tz',-6],
 		['Net','savethumbs',1],
 		['Net','thumbdir',"itn"],
 		['DB','lcgeneric',1],
 		['DB','askDB',0],
-		['UI','mainbg',"#FDC"],
+		['UI','mainbg',"#FED"],
 		['UI','gradient',"#F00,#F30,#F60,#F90,#FC0,#FF0,#CF0,#9F0,#6F0,#3F0,#0F0,#0F3,#0F6,#0F9,#0FC,#0FF,#0CF,#09F,#06F,#03F,#00F,#30F,#60F,#90F,#C0F,#F0F,#F0C,#F09,#F06,#F03,#EEF,#DDE,#CCD,#BBC,#AAB,#99A,#889,#778,#667,#556,#445,#334,#223,#112,#001"],
 	);
 }

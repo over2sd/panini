@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 use strict; use warnings;
 my $PROGRAMNAME = "Panini pantry system";
-my $version = "0.26a";
+my $version = "0.27a";
 my $cfn = "config.ini";
 my $debug = 1;
 my $dbn = 'pantry';
@@ -65,16 +65,23 @@ my ($w,$h,$x,$y) = ((FIO::config('Main','width') or 1020),(FIO::config('Main','h
 my $gui = TGK::createMainWin($PROGRAMNAME,$version,$w,$h,$x,$y);
 my ($pw,$ph) = (800,542);
 my  ($dbh,$error);
-if (FIO::config('DB','askDB')) {
-	($dbh,$error) = TGUI::selectDB($gui);
-} else {
-	($dbh,$error) = FlexSQL::getDB(FIO::config('DB','type') or 'L') or undef;
-}
-
 Sui::storeData('panewidth',$pw);
 Sui::storeData('paneheight',$ph);
 TGK::pushStatus("Loading GUI..");
-TGUI::populateMainWin($dbh,$gui,0);
+if (FIO::config('DB','askDB')) {
+	TGUI::selectDB($gui);
+} else {
+	my $pwc = (FIO::config('DB','pwp') or 0);
+	my $pwt;
+	my ($dbs,$dbu,$dbn) = ((FIO::config('DB','host') or "ERROR"),(FIO::config('DB','uname') or "ERROR"),(FIO::config('DB','dbname') or "ERROR"));
+	$pwc and ($pwt = TGUI::getDBPass($gui,$dbs,$dbu,$dbn));
+	my @args = ((FIO::config('DB','type') or 'L'),$dbs,);
+	if ("$args[0]" eq "M") {
+		push(@args,$dbn,($pwc ? $pwt : undef),($dbu eq "" ? undef : $dbu));
+	}
+	($dbh,$error) = FlexSQL::getDB(@args) or undef;
+	TGUI::populateMainWin($dbh,$gui,0);
+}
 TGK::pushStatus(".Ready",1);
 MainLoop; # actually run the program
 FIO::config('Main','writecfg') and FIO::saveConf(); # write config on exit

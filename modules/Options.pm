@@ -2,8 +2,6 @@ package Options;
 
 use strict;
 use warnings;
-#use Prima qw(Application Buttons MsgBox FrameSet StdDlg Sliders Notebooks ComboBox);
-#use PGK qw( Pager );
 print __PACKAGE__;
 
 use FIO qw( config );
@@ -25,8 +23,11 @@ print "mOB: $target\n";
 	my $page = 0;
 	my $running = 1;
 	my $toSave = {};
-	my $nb = $target->Scrolled('Frame', -scrollbars => 'osoe',-width => $w, -height => $h - 50, )->grid(-row=>2,-column=>1);
-	$nb->Label(-text => (FIO::config('Custom','options') or "Options") . ":")->grid(-row=>$pos++,-column => 1);
+	my $nb = cfp($target->Scrolled('Frame', -scrollbars => 'osoe',-width => $w, -height => $h - 50, ),'panebg','',2,1);
+	my $splash = cfp($nb->Label(-text => "Loading options..."),'panebg','bighead',$pos,2);
+	TGK::pushStatus("Loading options... Please wait...");
+	TGK::TFresh();
+	cfp($nb->Label(-text => (FIO::config('Custom','options') or "Options") . ":"),'panebg','head',$pos++,1);
 	my $vb;# = PGK::labelBox($optbox,"Options",'optlist','v',boxfill => 'both', boxex => 1);
 	my %args;
 #	my @tablist;
@@ -37,25 +38,22 @@ print "mOB: $target\n";
 #$nb->Label(-text => "Option: $o[0]: $o[1]")->pack();
 #	}
 #	if (defined config('UI','tabson')) { $args{orientation} = (config('UI','tabson') eq "bottom" ? tno::Bottom : tno::Top); } # set tab position based on config option
-	my $buttons = $target->Frame();
+	my $buttons = TGK::setBG($target->Frame(),'panebg');
 	place($buttons,3,1,'e');
 	my ($curtab,$section);
-	my $spacer = $buttons->Label(-text => " ")->pack(-fill => 'x', -expand => 1, -side=>'left');
-	my $cancelB = $buttons->Button(-text => "Cancel", -command => sub { TGUI::emptyFrame($target); })->pack(-side=>'left');
-	my $saveB = $buttons->Button(-text => "Save", )->pack(-side=>'left');
+	my $spacer = TGK::setBG($buttons->Label(-text => " ")->pack(-fill => 'x', -expand => 1, -side=>'left'),'panebg');
+	my $cancelB = TGUI::setBGF($buttons->Button(-text => "Cancel", -command => sub { TGUI::emptyFrame($target); })->pack(-side=>'left'),'buttonbg','button');
+	my $saveB = TGUI::setBGF($buttons->Button(-text => "Save", )->pack(-side=>'left'),'buttonbg','button');
 	$saveB->configure(-command => sub { saveFromOpt($saveB,[$target,$toSave,$target->parent]); });
 	$curtab = $nb; # until/unless tabs implemented, set current tab to main page
 	foreach my $k (sort keys %opts) {
 		my @o = @{ $opts{$k} };
 		if ($o[0] eq "l") { # label for tab
-			my $l = $nb->Label(-text => "  $o[1]", -justify => 'left' ); # for each section, make a notebook page
-			place($l,$pos++,1);
+			my $l = cfp($nb->Label(-text => "  $o[1]", -justify => 'left' ),'panebg','body',$pos++,1); # for each section, make a notebook page
 			$section = $o[2];
 			filler($curtab,$spos,20,'x');
-			$curtab = $nb->Frame(-relief=>'groove',-bd=>2);
-			place($curtab,$pos,1,'we');
+			$curtab = cfp($nb->Frame(-relief=>'groove',-bd=>2),'panebg','',$pos++,1,'we');
 			$page++;
-			$pos++;
 			$spos = 1;
 		}elsif (defined $section and defined $curtab) { # not first option in list
 			addModOpts($curtab,$section,\$changes,$spos,$saveB,$toSave,@o); # build and add option to page
@@ -67,7 +65,9 @@ print "mOB: $target\n";
 		}
 	}
 #	$pages->{selector}->notify(q(Change)) if (config('UI','notabs')); # force a Change event to bring first panel to front.
-
+	$splash->destroy();
+	TGK::pushStatus("done.",1);
+	TGK::TFresh();
 	return;
 }
 print ".";
@@ -87,12 +87,11 @@ sub addModOpts {
 			my $checkit = (config($s,$key) or 0);
 	print "CHECK: $s/$key: $checkit\n";
 			$checkit = (("$checkit" eq "1" or "$checkit" =~ /[Yy]/) ? 1 : 0);
-			my $cb = $parent->Checkbutton(-text => $lab, -variable => \$checkit);
 			my $col = 1;
 			$_ =~ m/c(\d)/;
 			if (defined $1) { $col = $1; $pos -= $1 - 1; }
 			$col = $col * 2 - 1;
-			place($cb,$pos,$col);
+			my $cb = cfp($parent->Checkbutton(-text => $lab, -variable => \$checkit),'panebg','body',$pos,$col);
 			$cb->configure(-command => sub { optChange($cb,[$change,$pos,$saveHash,$s,$key,$applyBut,(config($s,$key) or 0)]); } );
 		}elsif (/d/) { # Date row (with calendar button if option enabled)
 $parent->Label(-text=>"Date type option not coded: $lab - $key - $col")->grid(-row=>$pos,-column=>1);
@@ -101,30 +100,40 @@ $parent->Label(-text=>"Date type option not coded: $lab - $key - $col")->grid(-r
 			if ($col =~ m/^#/) { $col = "Verdana 12"; } # if passed a hex code
 			require Tk::FontDialog;
 			labelRow($parent,$lab,$pos);
-			my $e = $parent->Entry(-text => (config($s,$key) or $col));
-			place($e,$pos,3);
-			my $b = $parent->Button(-text => "Choose");
-			place($b,$pos,4);
-			my $fl = $parent->Label(-text => (config('Custom','fontsamp') or $e->get())); # "Lorem Ipsum Fox Qqgfo0O"
+			my $e = cfp($parent->Entry(-text => (config($s,$key) or $col)),'entbg','entry',$pos,3);
+			my $b = cfp($parent->Button(-text => "Choose"),'buttonbg','button',$pos,4);
+			my $fl = $parent->Label(-text => (config('Custom','fontsamp') or $e->get()), -foreground => "#000", -background => "#FFF"); # "Lorem Ipsum Fox Qqgfo0O"
 			place($fl,$pos,5);
-			sub setFont {
-				return TGK::setFont(@_);
-			}
-			setFont($fl,$e->get());
+			sub setFont { return TGK::setFont(@_); }
+			setFont($fl,$e->get(),1);
 			$b->configure(-command => sub {
 				my $f = $b->FontDialog->Show;
 				return unless defined $f;
 				my $df = $b->GetDescriptiveFontName($f);
 				$e->configure(-text => $df);
-				setFont($fl,$df);
+				setFont($fl,$df,1);
 				$e->focus();
 				});
 			$e->configure(-validate => 'focusout', -validatecommand => sub { 
 				my $df = $e->get();
-				setFont($fl,$df);
+				setFont($fl,$df,1);
 				return optChange($e,[$change,$pos,$saveHash,$s,$key,$applyBut,(config($s,$key) or "")]);
 			});
-			TGK::bindEnters($e,sub { setFont($fl,$e->get()); });
+			TGK::bindEnters($e,sub { setFont($fl,$e->get(),1); });
+#		}elsif (/g/) {
+#			$parent->insert( Label => text => $lab, alignment => ta::Center, pack => { fill => 'x', expand => 0 }, font => PGK::applyFont($key));
+		}elsif (/h/) { # heading row
+			# TODO: Add heading row handling
+			($col eq "#FF0000") and $col = undef; # remove the default so it doesn't become a header.
+			unshift(@a,$lab,$key,$col);
+			my $c = 1;
+			foreach my $h (@a) {
+				cfp($parent->Label(-text => "$h"),'panebg','head',$pos,$c++); # add a header for each item.
+			}
+		}elsif (/l/) {
+			cfp($parent->Label(-text => "$lab"),'panebg','body',$pos,1);
+#		}elsif (/m/) {
+#PGUI::devHelp($parent,"Mask page options ($key)");
 		}elsif (/n/) {
 			my $paired = 0;
 			if (/n2/) {
@@ -134,28 +143,25 @@ $parent->Label(-text=>"Date type option not coded: $lab - $key - $col")->grid(-r
 			my $col = (config($s,$key) or $col); # pull value from config, if present
 			if ($col =~ m/^#/) { $col = 0; } # if passed a hex code
 			buildNumericRow($parent,$saveHash,$applyBut,$lab,$s,$key,$col,$change,$pos,$paired,@a);
+#		}elsif (/r/) {
+#			my $col = (config($s,$key) or $col);
+#			buildComboRow($parent,$saveHash,$applyBut,$lab,$s,$key,$col,$change,$pos,$_,@a);
+#		}elsif (/s/) {
+#			my $val = (config($s,$key) or "");
+#			foreach my $i (0..$#a) { # find the value among the options
+#				if ($a[$i] eq $val) { $col = $i; }
+#			}
+#			buildComboRow($parent,$saveHash,$applyBut,$lab,$s,$key,$col,$change,$pos,$_,@a);
 		}elsif (/t/) {
-			labelRow($parent,$lab,$pos);
-			my $e = $parent->Entry(-text => (config($s,$key) or ""));
-			place($e,$pos,3);
-			$e->configure(-validate => 'focusout', -validatecommand => sub { return optChange($e,[$change,$pos,$saveHash,$s,$key,$applyBut,(config($s,$key) or "")]); });
-=item Comment
-
-		}elsif (/g/) {
-			$parent->insert( Label => text => $lab, alignment => ta::Center, pack => { fill => 'x', expand => 0 }, font => PGK::applyFont($key));
-		}elsif (/m/) {
-PGUI::devHelp($parent,"Mask page options ($key)");
-		}elsif (/r/) {
-			my $col = (config($s,$key) or $col);
-			buildComboRow($parent,$saveHash,$applyBut,$lab,$s,$key,$col,$change,$pos,$_,@a);
-		}elsif (/s/) {
-			my $val = (config($s,$key) or "");
-			foreach my $i (0..$#a) { # find the value among the options
-				if ($a[$i] eq $val) { $col = $i; }
+			# TODO: Add handling of t2
+			my $c = 1;
+			if (/t2/) {
+				$c = 3;
+				$pos--;
 			}
-			buildComboRow($parent,$saveHash,$applyBut,$lab,$s,$key,$col,$change,$pos,$_,@a);
-=cut
-
+			labelRow($parent,$lab,$pos,$c);
+			my $e = cfp($parent->Entry(-text => (config($s,$key) or "")),'entbg','entry',$pos,$c+2);
+			$e->configure(-validate => 'focusout', -validatecommand => sub { return optChange($e,[$change,$pos,$saveHash,$s,$key,$applyBut,(config($s,$key) or "")]); });
 		}elsif (/x/) {
 			my $col = (config($s,$key) or $col); # pull value from config, if present
 			buildColorRow($parent,$saveHash,$applyBut,$lab,$s,$key,$col,$change,$pos);
@@ -242,8 +248,8 @@ sub saveFromOpt {
 	# TODO: check here to see if something potentially crash-inducing has been changed, and shut down cleanly, instead, after informing user that a restart is required.
 #	formatTooltips(); # set tooltip format, in case it was changed.
 	TGK::emptyFrame($parent);
-	place($parent->Label(-text => "Options applied."),1,1);
-	place($parent->Button(-text => "Reload Options pane", -command => sub { TGUI::showOptionsBox($grandparent); }),2,1);
+	cfp($parent->Label(-text => "Options applied."),'panebg','body',1,1);
+	cfp($parent->Button(-text => "Reload Options pane", -command => sub { TGUI::showOptionsBox($grandparent); }),'buttonbg','button',2,1);
 
 =item Comment
 
@@ -300,11 +306,9 @@ print ".";
 sub buildColorRow {
 	my ($box,$options,$applyBut,$lab,$s,$key,$col,$change,$pos) = @_;
 	labelRow($box,$lab,$pos,1);
-	my $e = $box->Entry(-text => "$col");
+	my $e = cfp($box->Entry(-text => "$col"),'entbg','entry',$pos,3);
 	$col eq "%main%" and $col = (FIO::config('UI','mainbg') or $MAINBG);
-	my $b = $box->Button(-text => " Select ", -background => "$col");
-	place($e,$pos,3);
-	place($b,$pos,4,'w',-columnspan => 3);
+	my $b = cfp($box->Button(-text => " Select ", -background => "$col"),'buttonbg','button',$pos,4,'w',-columnspan => 3);
 	$e->configure(-validate => 'all', -validatecommand => sub { matchColor($e,$b); return 1; } );
 	TGK::bindEnters($e,sub { matchColor($e,$b); });
 	#color => (config($s,$key) or $col)
@@ -326,14 +330,13 @@ sub buildNumericRow {
 	my ($f,$t,$i,$p) = (($boundaries[0] or 0),($boundaries[1] or 10),($boundaries[2] or 1),($boundaries[3] or 5));
 	$v or $v = 0; # default value
 #	my $n = $box->Spinbox(-width=>3,-from=>$f,-to=>$t,-increment=>$i,-value=>$v);
-	my $n = $box->Entry(-width=>4, -text => "$v");
-	place($n,$pos,$col + 2);
-	place($box->Button(-width => 4, -padx => 1, -pady => 1, -text=>$f,-command=>sub { $n->configure(-text => "$f"); }),$pos,$col + 3);
+	my $n = cfp($box->Entry(-width=>4, -text => "$v"),'entbg','entry',$pos,$col + 2);
+	cfp($box->Button(-width => 4, -padx => 1, -pady => 1, -text=>$f,-command=>sub { $n->configure(-text => "$f"); }),'buttonbg','button',$pos,$col + 3);
 # TODO: Optional pagedn button
-	place($box->Button(-padx => 1, -pady => 1, -text=>"-",-command=>sub { $n->configure(-text => $n->get() - $i); }),$pos,$col + 4);
-	place($box->Button(-padx => 1, -pady => 1, -text=>"+",-command=>sub { $n->configure(-text => $n->get() + $i); $n->focus(); $n->focus(); $n->focusNext(); }),$pos,$col + 5);
+	cfp($box->Button(-padx => 1, -pady => 1, -text=>"-",-command=>sub { $n->configure(-text => $n->get() - $i); }),'buttonbg','button',$pos,$col + 4);
+	cfp($box->Button(-padx => 1, -pady => 1, -text=>"+",-command=>sub { $n->configure(-text => $n->get() + $i); $n->focus(); $n->focus(); $n->focusNext(); }),'buttonbg','button',$pos,$col + 5);
 # TODO: Optional pageup button
-	place($box->Button(-width => 4, -padx => 1, -pady => 1, -text=>$t,-command=>sub { $n->configure(-text => "$t"); }),$pos,$col + 6);
+	cfp($box->Button(-width => 4, -padx => 1, -pady => 1, -text=>$t,-command=>sub { $n->configure(-text => "$t"); }),'buttonbg','button',$pos,$col + 6);
 	$n->configure(-validate => 'focusout', -validatecommand => sub { return optChange($n,[$changes,$pos,$options,$s,$key,$applyBut,config($s,$key)]); });
 }
 print ".";
@@ -342,14 +345,14 @@ sub filler {
 	my ($t,$r,$c,$f) = @_;
 	my $ff = $t->Frame();
 	$t->gridColumnconfigure($c,-weight=>10);
-	return place($ff,$r,$c,'nswe');
+	return cfp($ff,'panebg','',$r,$c,'nswe');
 }
 print ".";
 
 sub labelRow { # make a quick label at the given row (and column)
 	my ($t,$v,$r,$c,@e) = @_;
 	my $w = $t->Label(-text=>"$v");
-	place($w,$r,($c or 1),@e);
+	cfp($w,'panebg','body',$r,($c or 1),@e);
 	return $w;
 }
 print ".";
@@ -375,6 +378,8 @@ sub place {
 	return TGK::place(@_);
 }
 print ".";
+
+sub cfp { return TGK::cfp(@_); }
 
 print " OK; ";
 1;

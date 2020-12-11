@@ -1,8 +1,11 @@
 package TGK;
 print __PACKAGE__;
 
+require Tk::FontDialog;
+
 my $mw;
 my $status = "\n(Status)";
+my $statbar;
 
 sub createMainWin {
 	my ($name,$ver,$w,$h,$x,$y) = @_;
@@ -23,12 +26,11 @@ sub createMainWin {
 	setBG($mw,'mainbg'); # set my background
 	$mw->geometry($geo);
 #	place($mw->Label(-relief => 'sunken',-textvariable => \$status,-anchor => 'nw', -justify => 'left'),2,2,'ews',-columnspan => 10); # a status bar
-	$mw->Label(-relief => 'sunken',-textvariable => \$status,-anchor => 'nw', -justify => 'left')->pack(-side => 'bottom', -fill => 'x', -expand => 0); # a status bar
+	$statbar = $mw->Label(-relief => 'sunken',-textvariable => \$status,-anchor => 'sw', -justify => 'left')->pack(-side => 'bottom', -fill => 'x', -expand => 1); # a status bar
 	$mw->protocol('WM_DELETE_WINDOW', sub {
-print "Checking for save window position..";
 		if (FIO::config('Main','savepos') or 0) {
 			my $geo = $mw->geometry;
-			print ".saving..";
+			print "Saving window positions...";
 			$geo =~ m/(\d+)x(\d+)\+(\d+)\+(\d+)/;
 			my ($w,$h,$x,$y) = ($1,$2,$3,$4);
 			FIO::config('Main','width',$w);
@@ -36,9 +38,9 @@ print "Checking for save window position..";
 			FIO::config('Main','left',$x);
 			FIO::config('Main','top',$y);
 			FIO::saveConf();
-			$mw->destroy();
 		}
-		print ".Done.";
+		$mw->destroy();
+		print "Done.\n";
 	});
 	return $mw;
 }
@@ -54,28 +56,50 @@ sub pushStatus {
 	$status .= "\n$text";
 	return 1;
 }
+print ".";
 
+sub repackStatus {
+	my $side = shift;
+	return $statbar->pack(-side => "$side");
+}
 print ".";
 
 sub setFont {
-	my ($w,$fn) = @_;
+	my ($w,$fn,$t) = @_;
+	return if (ref($w) eq "Tk::Frame");
+#	print " F $fn " . Common::lineNo(3,1);
+	unless (defined $fn) {
+		$fn = "Verdana 12";
+		Common::errorOut('inline','ile',string=>"\nUsing default font.");
+	}
 	my $f = $w->GetDescriptiveFontName($fn);
 	# TODO: Sanity check font name
-	$w->configure(-font => $f, -text => $fn);
+	$w->configure(-font => $f);
+	$t and $w->configure(-text => $fn);
 }
 print ".";
 
 sub setBG {
 	my ($w,$cn) = @_;
 	ref($w) =~ m/Tk::/ or print Common::lineNo(2);
-	print "Coloring " . ref($w) . " - ";
+#	print "Coloring " . ref($w) . " - ";
 	if (ref(\$cn) eq "SCALAR") {
-		print "Keyword: $cn";
+#		print "Keyword: $cn";
 		$cn = (FIO::config('UI',$cn) or "%main%");
-		print " $cn\n";
+#		print " $cn ";
 	}
 	($cn eq "%main%") and $cn = (FIO::config('UI','mainbg') or "#CCF");
 	$w->configure(-background => $cn);
+	return $w;
+}
+print ".";
+
+sub cfp {
+	my ($w,$x,$f,$r,$c,@extra) = @_;
+	return unless defined $w and ref($w) =~ m/Tk::/;
+	defined $x and setBG($w,$x);
+	defined $f and setFont($w,$f,0);
+	defined $r and place($w,$r,$c,@extra);
 	return $w;
 }
 print ".";
@@ -136,6 +160,7 @@ print ".";
 sub place {
 	my ($w,$r,$c,$a,%extra) = @_;
 	my $s = Common::hashString(%extra);
+print "[T] Called " . Common::lineNo(3);
 	$s = ($s eq "" ? "" : " + $s");
 	Common::showDebug('g') and main::howVerbose() > 5 and print "placeWidget: $r x $c, S:" . ($a or "'w'") . $s . "\n";
 	$w->grid(%extra);
