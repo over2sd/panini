@@ -79,7 +79,7 @@ sub addModOpts {
 	my $t = $a[0];
 	my $lab = $a[1];
 	my $key = $a[2];
-	my $col = ($a[3] or "#FF0000");
+	my $col = ($a[3] or undef);
 	splice @a, 0, 4; # leave 4-n in array
 #	my $rw = $parent->Frame()->grid(-row=>$pos++,-column=>1,-sticky=>'w');
 	for ($t) {
@@ -97,7 +97,7 @@ sub addModOpts {
 $parent->Label(-text=>"Date type option not coded: $lab - $key - $col")->grid(-row=>$pos,-column=>1);
 #PGUI::devHelp($parent,"Date type options ($key)");
 		}elsif (/f/) {
-			if ($col =~ m/^#/) { $col = "Verdana 12"; } # if passed a hex code
+			if (defined $col and $col =~ m/^#/) { $col = "Verdana 12"; } # if passed a hex code
 			require Tk::FontDialog;
 			labelRow($parent,$lab,$pos);
 			my $e = cfp($parent->Entry(-text => (config($s,$key) or $col)),'entbg','entry',$pos,3);
@@ -123,8 +123,7 @@ $parent->Label(-text=>"Date type option not coded: $lab - $key - $col")->grid(-r
 #		}elsif (/g/) {
 #			$parent->insert( Label => text => $lab, alignment => ta::Center, pack => { fill => 'x', expand => 0 }, font => PGK::applyFont($key));
 		}elsif (/h/) { # heading row
-			# TODO: Add heading row handling
-			($col eq "#FF0000") and $col = undef; # remove the default so it doesn't become a header.
+#			($col eq "#FF0000") and $col = undef; # remove the default so it doesn't become a header.
 			unshift(@a,$lab,$key,$col);
 			my $c = 1;
 			foreach my $h (@a) {
@@ -141,7 +140,7 @@ $parent->Label(-text=>"Date type option not coded: $lab - $key - $col")->grid(-r
 				$pos--;
 			}
 			my $col = (config($s,$key) or $col); # pull value from config, if present
-			if ($col =~ m/^#/) { $col = 0; } # if passed a hex code
+			if (defined $col and $col =~ m/^#/) { $col = 0; } # if passed a hex code
 			buildNumericRow($parent,$saveHash,$applyBut,$lab,$s,$key,$col,$change,$pos,$paired,@a);
 #		}elsif (/r/) {
 #			my $col = (config($s,$key) or $col);
@@ -153,7 +152,6 @@ $parent->Label(-text=>"Date type option not coded: $lab - $key - $col")->grid(-r
 #			}
 #			buildComboRow($parent,$saveHash,$applyBut,$lab,$s,$key,$col,$change,$pos,$_,@a);
 		}elsif (/t/) {
-			# TODO: Add handling of t2
 			my $c = 1;
 			if (/t2/) {
 				$c = 3;
@@ -163,7 +161,7 @@ $parent->Label(-text=>"Date type option not coded: $lab - $key - $col")->grid(-r
 			my $e = cfp($parent->Entry(-text => (config($s,$key) or "")),'entbg','entry',$pos,$c+2);
 			$e->configure(-validate => 'focusout', -validatecommand => sub { return optChange($e,[$change,$pos,$saveHash,$s,$key,$applyBut,(config($s,$key) or "")]); });
 		}elsif (/x/) {
-			my $col = (config($s,$key) or $col); # pull value from config, if present
+			my $col = (config($s,$key) or $col or "#FF0000"); # pull value from config, if present
 			buildColorRow($parent,$saveHash,$applyBut,$lab,$s,$key,$col,$change,$pos);
 		} else {
 #	place($parent->Label(-text=>"$t"),$pos,1);
@@ -318,7 +316,6 @@ sub buildColorRow {
 	$b->configure(-command => sub { my $color = $b->chooseColor(-title => "Choose $lab Color", -initialcolor => $e->get()); $color and $e->configure(-text => $color); matchColor($e,$b); });
 	#	}
 	$e->configure(-validatecommand => sub { optChange($e,[$change,$pos,$options,$s,$key,$applyBut,(config($s,$key) or "")]); });
-# TODO: Change background of $e to color selected in color dialog?
 }
 print ".";
 

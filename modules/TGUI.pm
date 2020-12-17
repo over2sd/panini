@@ -41,6 +41,7 @@ sub entryStack { return entryGroup(@_,'v'); }
 #print "Debug: $parent ... " . ref($parent) . " ...\n";
 sub entryGroup {
 	my ($parent,$name,$r,$c,$s,$tv,$valcmd,$col,$dir) = @_;
+	#print join(" : ",($parent,$name,$r,$c,$s,$tv,$valcmd,$col,$dir));
 	my %args = ( -row => $r, -column => $c );
 	unless (defined $parent) {
 		print "\nentryGroup no parent " . Common::lineNo(2);
@@ -215,11 +216,9 @@ sub showPantryLoader {
 		$gv = $$row{generic} if defined $$row{generic};
 		if (defined $$row{keep} and $$row{keep} ne $kv) { $newkeep = 1; }
 		$kv = $$row{keep} if defined $$row{keep};
-# TODO: Make sure the tab order is correct in the Store page.
-
-		my $qb = setBG($if->Frame(),'panebg');
 		our $okb = $if->Button(-text=> ($UPConButton ? "Save $ut" : "Save"), -state => 'disabled',)->grid(-row=>6,-column=>5);
 		our $ne = entryRow($if,"Name: ",1,1,undef,\$nv,\&myValidate,'panebg');
+		my $qb = cfp($if->Frame(),'panebg','',1,4,'w',-columnspan=>2);
 		our $qe = $qb->Entry(-textvariable=>\$qty,-validate=>'focusout',-validatecommand=> \&myValidate, -width => 4, );
 		our $ke = $qb->Entry(-textvariable=>\$kv,-validate=>'focusout',-validatecommand=> \&myValidate, -width => 4, );
 		our $se = entryRow($if,"Size: ",2,1,undef,\$sv,\&myValidate,'panebg');
@@ -262,7 +261,6 @@ sub showPantryLoader {
 		$ce->insert('end','lb');
 		$ce->insert('end','L');
 		$ce->grid(-row=>2,-column=>3);
-		place($qb,1,4,'w',-columnspan=>2);
 		$ql->grid(-row=>1,-column=>1);
 		$qe->grid(-row=>1,-column=>2);
 		cfp($qb->Label(-text=>"/"),'panebg','body',1,3);
@@ -289,7 +287,7 @@ sub showButtonPanel {
 	my $loadb = $bf->Button(-text=>(FIO::config('Custom','itemadd') or "Store"),-command=>sub { showPantryLoader($parent); })->pack(%butpro);
 	my $editb = $bf->Button(-text=>(FIO::config('Custom','editor') or "Edit"),-command=>sub { showItemDB($parent); })->pack(%butpro);
 	my $prodb = $bf->Button(-text=>(FIO::config('Custom','priceadd') or "Price"),-command=>sub { showProductInfo($parent); })->pack(%butpro);
-	my $planb = $bf->Button(-text=>(FIO::config('Custom','recipe') or "Plan"),-command=>sub { showRecipeProposal($parent); })->pack(%butpro);
+	my $planb = $bf->Button(-text=>(FIO::config('Custom','recipe') or "Plan"),-command=>sub { showRecipeProposal($parent); }); #->pack(%butpro);
 	my $listb = $bf->Button(-text=>(FIO::config('Custom','buylist') or "Buy"),-command=>sub { showShoppingList($parent); })->pack(%butpro);
 	my $contb = $bf->Button(-text=>(FIO::config('Custom','pantrylist') or "Cook"),-command=>sub { showPantryContents($parent); })->pack(%butpro);
 	setBG($bf->Label(-text => " ")->pack(%butpro),'panebg');
@@ -300,9 +298,9 @@ sub showButtonPanel {
 	my @bgroup = ($contb,$editb,$listb,$loadb,$planb,$prodb);
 	$bf->grid(-row=>1,-column=>2,-sticky=>"ne");
 	my $sysf = $if->Frame()->grid(-row=>2,-column=>2);
-	push(@bgroup,$sysf->Button(-image=>$if->Photo(-file => "img/Tango-gear.gif"), -command => sub { showOptionsBox($parent); } )->grid(-row=>1,-column=>1)); # TODO: Add options gear at bottom of frame
-	push(@bgroup,$sysf->Button(-image=>$if->Photo(-file => "img/Tango-info.gif"), -command => sub { showAboutBox($parent); } )->grid(-row=>1,-column=>2)); # TODO: Add an about button to bottom of frame
-	push(@bgroup,$sysf->Button(-image=>$if->Photo(-file => "img/Tango-question.gif"), -command => sub { showHelp($parent); })->grid(-row=>1,-column=>3)); # TODO: Add a help button to bottom of frame
+	push(@bgroup,$sysf->Button(-image=>$if->Photo(-file => "img/Tango-gear.gif"), -command => sub { showOptionsBox($parent); } )->grid(-row=>1,-column=>1)); # Add options gear at bottom of frame
+	push(@bgroup,$sysf->Button(-image=>$if->Photo(-file => "img/Tango-info.gif"), -command => sub { showAboutBox($parent); } )->grid(-row=>1,-column=>2)); # Add an about button to bottom of frame
+	push(@bgroup,$sysf->Button(-image=>$if->Photo(-file => "img/Tango-question.gif"), -command => sub { showHelp($parent); })->grid(-row=>1,-column=>3)); # Add a help button to bottom of frame
 	Sui::storeData('bgroup',\@bgroup);
 	setBG($if,'panebg'); # set background to pane or main color
 	setBG($bf,'panebg'); # set background to pane or main color
@@ -429,11 +427,12 @@ sub showPantryContents { # For cooking/reducing inventory
 	my %args = %{ Sui::passData('frameargs') };
 	my %qtyos;
 	my $sf = $if->Scrolled('Frame', -scrollbars => 'osoe', %args, -width => $args{-width} * 0.95)->pack(-fill => 'both',);
-	cfp($sf->Label(-text => "Item to use up:"),'listbg','body',1,1);
+	my $userow = cfp($sf->Frame(),'listbg','',1,1,'w',-columnspan=>7);
+	cfp($userow->Label(-text => "Item to use up:"),'listbg','body',1,1);
 	my $dq = 0;
-	my $de = cfp($sf->Entry(-validate => 'all', -validatecommand => sub { $dq = 0; return 1; } ),'entbg','entry',1,2);
-	my $ol = $sf->Label(-text => " ")->grid(-row => 1, -column => 4);
-	my $db = cfp($sf->Button(-text => "Use", -command => sub { lowerQty($de->get(),$ol,++$dq,%qtyos); }),'buttonbg','button',1,3);
+	my $de = cfp($userow->Entry(-validate => 'all', -validatecommand => sub { $dq = 0; return 1; } ),'entbg','entry',1,2);
+	my $ol = $userow->Label(-text => " ")->grid(-row => 1, -column => 3);
+	my $db = cfp($userow->Button(-text => "Use", -command => sub { lowerQty($de->get(),$ol,++$dq,%qtyos); }),'buttonbg','button',1,4);
 	TGK::bindEnters($de, sub { lowerQty($de->get(),$ol,++$dq,%qtyos); });
 	cfp($sf->Label(-text => " ", -width => 80, -height => 1),'listbg','body',2,1,'w',-columnspan => 7);
 	my $st = "SELECT * FROM items WHERE upc NOT LIKE 'RG%' ORDER BY generic ASC;";
@@ -473,7 +472,7 @@ sub showProductInfo { # for pricing products in the store
 	my ($r,$c) = (1,1);
 	my %args = %{ Sui::passData('frameargs') };
 	unless (defined $parent) {
-		print Common::lineNo();
+		print "No parent given to sPI()" . Common::lineNo();
 	}
 	my $si = (Sui::passData('storeID') or 1);
 	my ($uv,$pv);
@@ -574,7 +573,7 @@ print ".";
 sub makePriceRow {
 	my ($t,$showrembut,$r,$a,$b,$c) = @_;
 	unless (defined $t) {
-		print Common::lineNo(1);
+		print "No target for mPR()" . Common::lineNo(1);
 	}
 	$$r++;
 	$c =~ /(\d\d\d\d-\d\d-\d\d)/;
@@ -752,10 +751,9 @@ sub addPriceList { # For showing a price history and analysis
 		my $c2 = ($d2 > 0 ? 1 : 2); # for each avg
 		$c1 = 4 if $lowind == $j; # blue for lowest
 		my $lm = ($lowind == $j ? "*" : "");
-		# TODO: Make colored text here
 		makePriceRow($parent,0,\$r,@$p);
 		$c1 = Common::getColors($c1,1,1);
-		setFont($parent->Label(-text => "$lm $d1/$d2 $lm", -background => "#FFF", -foreground => "$c1")->grid(-row => $r, -column => 4),'body');
+		setFont($parent->Label(-text => "$lm $d1/$d2 $lm", -background => "#EEF", -foreground => "$c1")->grid(-row => $r, -column => 4),'body');
 		$j++;
 	}
 	return $r;
@@ -817,7 +815,9 @@ sub populateMainWin {
 		Sui::storeData('frameargs',$frameargs);
 		unless (FlexSQL::table_exists($dbh,"items") && FlexSQL::table_exists($dbh,"stores")) {
 			print "-=-";
+			TGK::pushStatus("Required tables not found. Attempting to create them. Please wait...");
 			FlexSQL::makeTables($dbh);
+			TGK::pushStatus("Done.",1);
 		}
 		Sui::storeData('db',$dbh);
 	}
@@ -1147,7 +1147,6 @@ skrDebug::dump($r,"Row",1);
 		my $pc = $rows[$$r]->Label(-text => "1")->grid(-row => 1, -column => 6);
 		my $rowind = $$r;
 		$qe->configure(-validate => 'all', -validatecommand => sub {
-			# TODO: add sanity checks
 			return 0 unless validateNumeric(@_);
 			my $count = Common::nround(0,$qe->get() / $ud + 0.499);
 			$pc->configure(-text => "$count");
@@ -1173,7 +1172,7 @@ sub getProdName {
 	skrDebug::dump($row);
 	return "unknown" unless (defined $row);
 	$$row{name} = "unknown" unless defined $$row{name};
-	return $$row{name} . "  (" . $$row{generic} . ")" if $showgen;
+	return $$row{name} . "  (" . $$row{generic} . ")" if $showgen; # TODO: Show QTY/UOM optionally
 	return $$row{name};
 }
 print ".";
@@ -1223,7 +1222,90 @@ sub validateNumeric { my ($en,$ed,$eo,$ep,$op,$ee) = @_; $en =~ /^(\d*\.?\d+)$/;
 print ".";
 
 sub getDBPass {
-	return "uncoded";
+	my ($parent,$snt,$dnt) = @_;
+	my $bg = 'panebg';
+	my $dia = $parent->DialogBox(-title=>"Login to $snt/$dnt",-buttons=>['Ok','Cancel'],-default_button=>'Ok');
+	setBG($dia,$bg);
+	setBG($dia->add('Label',-text=>"Username")->pack(-side=>"left"),$bg);
+	my $una = (FIO::config('DB','uname') or "");
+	setBG($dia->add('Entry',-textvariable=>\$una)->pack(-side=>"left"),$bg);
+	setBG($dia->add('Label',-text=>"Password")->pack(-side=>"left"),$bg);
+	my $pwt;
+	setBG($dia->add('Entry',-textvariable=>\$pwt,-show=>"*")->pack(-side=>"left"),$bg)->focus();
+	$dia->Show();
+	return $pwt;
+}
+print ".";
+
+my $servers;
+sub getServers {
+	defined $servers and return $servers;
+	$servers = Config::IniFiles->new();
+	my $fn = (FIO::config('Disk','servers') or "servers.ini");
+	$servers->SetFileName($fn);
+	Common::infMes("Seeking server file...",1);
+	if ( -s $fn ) {
+		print "found. Loading...";
+		$servers->ReadConfig();
+	}
+	return $servers;
+}
+print ".";
+
+sub selectPalette {
+	my ($t,@args) = @_;
+	Common::showDebug('x') and print "selectPalette(" . ($args[0] or "") . ")\n";
+	return unless defined $args[0]; # the background is required.
+	my $palbox = cfp($t->Frame(-relief=>'ridge',-bd=>4),@args);
+	my ($c,$r,$w) = (100,1,13);
+	cfp($palbox->Label(-text=>"Select a color scheme:"),$args[0],'head',1,1,'n',-columnspan=>$w);
+	my %cols = ( # mainbg, panebg, listbg, helpbg, buttonbg, entbg
+		'Mono' => [qw(#EEF %main% %main% %main% %main% %main%)],
+		'HiContrast' => [qw(#FFF #FFC #CFF #CFC #FCF #CCF)],
+		'Green' => [qw(#CDD #3BDD2C #9BC999 #71C2BD #F3C77C #2DA47C)],
+		'Lynx' => [qw(#bfc #6B6 #bfc #fff #ff0 #FF0 #005 #000 #000 #500 #0fc #050)],
+		'Sunshine' => [qw(#acca7e #FF0 #dace33 #cf6422 #a39766 #66a871)],
+		'Ocean' => [qw(#0ff #30d0b5 #64a9b7 #4579ad #55f #779)],
+		'Flame' => [qw(#f00 #d86176 #fa0 #cee06b #df5 #ff6)],
+		'Royal' => [qw(#d0f #c0f #e19fa3 #ae7c84 #b4b82f #62911c)],
+	);
+	sub setScheme {
+		my ($m,$p,$l,$h,$b,$e,$mf,$pf,$lf,$hf,$bf,$ef) = @_;
+		print "setScheme Rcvd $m $p $l $h $b $e...\n";
+		my @args = ($m,$p,$l,$h,$b,$e,$mf,$pf,$lf,$hf,$bf,$ef);
+		my @keys = qw(mainbg panebg listbg helpbg buttonbg entrybg mainfg panefg listfg helpfg buttonfg entryfg);
+		foreach my $i (0..$#args) {
+			next unless defined $args[$i]; # skip undefined colors.
+			Common::showDebug('c') and print "Setting colors $keys[$i] to $args[$i].\n";
+			FIO::config('UI',$keys[$i],$args[$i]);
+		}
+	}
+	my %pa = (-fill=>'x',-expand=>1);
+	foreach my $s (qw(Mono HiContrast Green Lynx Sunshine Ocean Flame Royal)) {
+		if ($c > $w) {
+			$c = 1;
+			$r++;
+			my $labs = cfp($palbox->Frame(),$args[0],'',$r,$c++);
+			setBG($labs->Button(-text=>"",-state=>'disabled')->pack(%pa),$args[0]);
+			setBG($labs->Label(-text=>"Main")->pack(%pa),$args[0]);
+			setBG($labs->Label(-text=>"Pane")->pack(%pa),$args[0]);
+			setBG($labs->Label(-text=>"List")->pack(%pa),$args[0]);
+			setBG($labs->Label(-text=>"Help")->pack(%pa),$args[0]);
+			setBG($labs->Label(-text=>"Button")->pack(%pa),$args[0]);
+			setBG($labs->Label(-text=>"Entry")->pack(%pa),$args[0]);
+		}
+		print "Making button $s\n";
+		my $x = cfp($palbox->Frame(-relief=>'groove',-bd=>2),$args[0],'',$r,$c);
+		setBG($x->Button(-text=>$s, -command=>sub { setScheme(@{$cols{$s}}); TGK::pushStatus("Color scheme set to $s."); })->pack(%pa),'buttonbg');
+		setBG($x->Label(-text=>"$cols{$s}[0]")->pack(%pa),$cols{$s}[0]);
+		setBG($x->Label(-text=>"$cols{$s}[1]")->pack(%pa),$cols{$s}[1]);
+		setBG($x->Label(-text=>$cols{$s}[2])->pack(%pa),$cols{$s}[2]);
+		setBG($x->Label(-text=>$cols{$s}[3])->pack(%pa),$cols{$s}[3]);
+		setBG($x->Label(-text=>$cols{$s}[4])->pack(%pa),$cols{$s}[4]);
+		setBG($x->Label(-text=>$cols{$s}[5])->pack(%pa),$cols{$s}[5]);
+		$c++;
+	}
+	$r++;
 }
 print ".";
 
@@ -1231,52 +1313,58 @@ sub selectDB {
 	my ($parent,) = @_;
 	my $bg = 'panebg';
 	my $of = setBG($parent->Frame()->pack(-side=>'top',-fill=>'both',-expand=>1),$bg);
-	cfp($of->Label(-text => "Welcome to " . main::myName() . ". Select your database options below.\n"),$bg,'body',1,1,'w',-columnspan=>2);
+	cfp($of->Label(-text => "Welcome to " . main::myName() . ". Select your database options below.\n"),$bg,'body',1,1,'w',-columnspan=>3);
 	# 1 SQL 2 COMMON 3 SQLITE
 	cfp($of->Label(-text => "Database Type"),$bg,'body',2,2);
 	my ($sb,$fb,$dbt,$dnt,$snt,$pwc,$unt,$pwe,$loadb,$adc);
-	# TODO: Store multiple servers and have a button to select one.
-	# use config with "servers.ini"
+	my $srvlst = getServers(); # use config with "servers.ini"
 	# pull the config into a hash, then save the hash into the config
-	my $dne = entryStack($of,"Database Name",5,2,undef,\$dnt,undef,$bg);
-	$dne->configure(-validate => "key", -validatecommand => sub { my $new = shift; return 1 if $new eq ""; return 0 unless defined $loadb; $loadb->configure( -text => "Load $new" . ($dbt eq "L" ? ".dbl" : "\@$snt")); return 1; });
+	my $sne = entryStack($of,"Host/filename",5,2,undef,\$snt,undef,$bg);
+	$sne->configure(-validate => "key", -validatecommand => sub { my $new = shift; return 1 if $new eq ""; return 0 unless defined $loadb; $loadb->configure( -text => "Load " . ($dbt eq "L" ? "$new.dbl" : "$dnt\@$new")); return 1; });
 	my $name = Sui::passData('dbname');
 	defined $name and $dnt = $name;
-	my $host = Sui::passData('dbhost');
+	my $host = (Sui::passData('dbhost') or 'pantry');
 	defined $host and $snt = $host;
-	my $sne = entryStack($of,"Hostname",2,1,undef,\$snt,undef,$bg);
-	$sne->configure(-validate => "key", -validatecommand => sub { my $new = shift; return 1 if $new eq ""; return 0 unless defined $loadb; $loadb->configure( -text => "Load $dnt" . ($dbt eq "L" ? ".dbl" : "\@$new")); return 1; });
+	my $dne = entryStack($of,"Database Name",2,1,undef,\$dnt,undef,$bg);
+	$dne->configure(-validate => "key", -validatecommand => sub { my $new = shift; return 1 if $new eq ""; return 0 unless defined $loadb; ($dbt eq "L"  or $loadb->configure( -text => "Load $new\@$snt")); return 1; });
 	my $une = entryStack($of,"Username",4,1,undef,\$unt,undef,$bg);
 	$pwc = (FIO::config('DB','pwp') or 0);
 	my $pcb = cfp($of->Checkbutton(-text => "Password protected", -variable => \$pwc, -command => sub { groupable($pwc,$pwe); }),'panebg','body',6,1);
 	$pwe = entryStack($of,"Password",7,1,undef,undef,undef,$bg);
 	$pwe->configure(-show=>"*",-state=>($pwc ? 'normal' : 'disabled'), -width=>15);
+	TGK::bindEnters($pwe,sub { $loadb->focus(); });
 # TODO: Make checkbutton skipped in tab order, and give it an accelerator
-	my @sgroup = ($sne,$une,$pcb,);
+	my @sgroup = ($dne,$une,$pcb,);
 	my @fgroup = ();
-# TODO: load/save of server/file information for selection buttons
+	my @pgroup = ();
 	$dbt = 'L';
 	our $fails = 0;
-	$loadb = cfp($of->Button(-text => "Load $dnt" . ($dbt eq "L" ? ".dbl" : "\@$snt"), -command => sub {
+	unless (defined FIO::config('UI','listbg')) {
+		selectPalette($of,'panebg','',16,1,'n',-columnspan=>3);
+		cfp($of->Label(-text=>"Individual colors can be changed in the options pane at any time."),'panebg','body',17,1,'n',-columnspan=>3);
+	}
+	$snt =~ s/\.dbl//; # we're about to add this on the button, so remove it if it's there.
+	$loadb = cfp($of->Button(-text => "Load " . ($dbt eq "L" ? "$snt.dbl" : "$dnt\@$snt"), -command => sub {
 	# dbtype host/file dbname password username
-		my @args = (($dbt or FIO::config('DB','type') or 'L'),$snt,);
+		$snt =~ s/\.dbl//; # we're about to add this, so remove it if it's there.
+		my @args = (($dbt or FIO::config('DB','type') or 'L'),($dbt eq "L" ? "$snt.dbl" : $snt),);
 		if ("$args[0]" eq "M") {
 			push(@args,$dnt,($pwc ? $pwe->get() : undef),($unt eq "" ? undef : $unt));
 		}
-		my ($dbh,$err) = FlexSQL::getDB(@args) or undef;
+		my ($dbh,$err,$errstr) = FlexSQL::getDB(@args) or undef;
 		sub saveAndPop {
 			my ($t,$sdb,$adb,$dty,$dho,$una,$dbn,$pwp,$dbh) = @_;
 			$sdb->destroy();
 			TGK::pushStatus("Please wait while database information is saved.");
 			# Save database information:
-#			FIO::config('DB','askDB',$adb); # show DB selection on startup
-			FIO::config('DB','askDB',1); # TODO: Check for password/username fail and set this to 1 in main. Then allow saving of 0.
+			FIO::config('DB','askDB',$adb); # show DB selection on startup
+#			FIO::config('DB','askDB',1); # TODO: Check for password/username fail and set this to 1 in main. Then allow saving of 0.
 			FIO::config('DB','type',$dty); # DB type
 			FIO::config('DB','host',$dho); # DB hostname or filename
 			FIO::config('DB','pwp',$pwp); # DB is password protected?
 			defined $dbn and length($dbn) and FIO::config('DB','dbname',$dbn);
 			defined $una and length($una) and FIO::config('DB','uname',$una);
-print "Saving $adb:$una@$dho/$dbn " . ($pwp ? "Safe" : "Free") . " $dty\n";
+			Common::showDebug('f') and print "Saving $adb:$una@$dho/$dbn " . ($pwp ? "Safe" : "Free") . " $dty\n";
 			FIO::saveConf(); # keep DB for next time
 			TGK::pushStatus("Loading GUI...");
 			TGUI::populateMainWin($dbh,$t,0);
@@ -1286,18 +1374,95 @@ print "Saving $adb:$una@$dho/$dbn " . ($pwp ? "Safe" : "Free") . " $dty\n";
 			saveAndPop($parent,$of,$adc,$args[0],$args[1],$unt,$dnt,$pwc,$dbh);
 # TODO: accelerator, automatically check password button if password error, writecfg on sucessful db connection
 		} elsif ("$err" eq "2") {
-			($dbh,$err) = FlexSQL::makeDB(@args) or undef;
+			print "((($errstr)))  ";
+			TGK::pushStatus("Creating Database. This may take a moment.");
+			($dbh,$err,$errstr) = FlexSQL::makeDB(@args) or undef;
 			if (defined $dbh and "$err" eq "OK") {
 				saveAndPop($parent,$of,$adc,$args[0],$args[1],$unt,$dnt,$pwc,$dbh);
 			} else {
 				$fails++;
 				TGK::pushStatus("The selected database could not be loaded. Please try again. ($fails)");
-				print "\n[E] Error loading database: $err. (" . $dbh->errstr . ")\n";
+				print "\n[E] Error loading database: $err. ($errstr)\n";
 			}
 		} else {
-			print "\n[E] Error loading database: $err. (" . $dbh->errstr . ")\n";
+			print "\n[E] Error loading database: $err. ($errstr)\n";
 		}
-		return; }),'buttonbg','button',15,1,'we',-columnspan=>2);
+		return; }),'buttonbg','button',15,1,'we',-columnspan=>3);
+	#TODO: Finish server selection box
+	my $pbox = cfp($of->Frame(-relief=>'raised',-bd=>1),$bg,'',5,3,'ew',-rowspan=>5); # box for profiles
+	our $pname = entryStack($of,"Profile Name",2,3,undef,undef,undef,'panebg'); # entry for profile name
+	my $psave = cfp($of->Button(-text=>"Add/Save"),'buttonbg','button',4,3);# button to save new profile
+	sub spro {
+		my ($srv,$section,$key,$value) = @_;
+		#print "spro($srv,$section,$key,$value)\n";
+		unless (defined $value) {
+			if (defined $srv->val($section,$key,undef)) {
+				return $srv->val($section,$key);
+			} else {
+				return undef;
+			}
+		} else {
+			if (defined $srv->val($section,$key,undef)) {
+				return $srv->setval($section,$key,$value);
+			} else {
+				return $srv->newval($section,$key,$value);
+			}
+		}
+	}
+	our @pkeys = ();
+	my $temp = (spro($srvlst,'Servers','list') or "");
+	unless ($temp eq "") {
+		push(@pkeys,split(':',$temp));
+	}
+	$psave->configure(-command => sub {
+		my $proname = ($pname->get() or undef);
+		return if ($proname eq undef or $proname eq "");
+		return unless defined $snt and $snt ne '';
+		$snt =~ s/\.dbl//; # we're going to add this, so remove it if it's there.
+		my @args = (($dbt or FIO::config('DB','type') or 'L'),$snt,);
+		spro($srvlst,$proname,'type',$args[0]);
+		spro($srvlst,$proname,'host',$args[1]);
+		if ("$args[0]" eq "M") {
+			push(@args,$dnt,$pwc,($unt eq "" ? undef : $unt));
+			spro($srvlst,$proname,'basename',$args[2]);
+			spro($srvlst,$proname,'password',$args[3]);
+			spro($srvlst,$proname,'username',$args[4]);
+		}
+		my $pos = Common::findIn($proname,@pkeys);
+		unless ($pos > -1) { # name not found in list
+			push(@pkeys,$proname);
+			$pbox->Button(-text=>"$proname",-command=>sub {
+				$pname->configure(-text=>"$proname"); $dbt = $args[0]; $snt = $args[1];
+				$dnt = $args[2]; $pwc = $args[3]; $unt = $args[4];
+				groupable(($dbt eq "L"),@fgroup,$sb); groupable(($dbt eq "M"),@sgroup,$fb);
+				($pwc ? $pwe->focus() : $loadb->focus()); # Focus either the password field or the load button
+			})->pack(-fill=>'x');
+			my $temp = join(':',@pkeys);
+			spro($srvlst,'Servers','list',$temp);
+		}
+		$srvlst->RewriteConfig();
+	});
+	foreach my $p (@pkeys) { # button for each server; push to @pgroup, on click, enable each @pgroup, disable self
+		my ($pt,$ph,$pb,$pp,$pu,$pn); # variables for profile info. Each one is necessary for button to work properly.
+		$pn = $p; # profile name
+		next if ($pn eq undef or $pn eq ""); # Profile must have a name (not sure how it loaded without one)
+		$pt = spro($srvlst,$pn,'type'); # DB type
+		$ph = spro($srvlst,$pn,'host'); # DB host/filename
+		$ph =~ s/\.dbl//; # we're about to add this, so remove it if it's there.
+		next unless defined $ph and $ph ne ''; # profile must have a host/file name.
+		if ("$pt" eq "M") { # MySQL database
+			$pb = spro($srvlst,$pn,'basename'); # ... needs a base name
+			$pp = spro($srvlst,$pn,'password'); # ... needs to know whether to send a password
+			$pu = spro($srvlst,$pn,'username'); # ... needs to have a username
+		} # ... but SQLite doesn't.
+		setBGF($pbox->Button(-text=>"$pn",-command=>sub { # place a button for selection.
+			$pname->configure(-text=>"$pn"); $dbt = $pt; $snt = $ph; # set profile name box, so if something changes on this host, it can be saved back to the same profile; change the DB type and hostname
+			$dnt = $pb; $pwc = $pp; $unt = $pu; # set the basename, password checkbox, and username
+			groupable($pwc,$pwe);
+			groupable(($pt eq "L"),@fgroup,$sb); groupable(($pt eq "M"),@sgroup,$fb); # set the appopriate button disabled with its fields, if any.
+			($pwc ? $pwe->focus() : $loadb->focus()); # Focus either the password field or the load button
+		})->pack(-fill=>'x'),'buttonbg','button'); # set the button background and font.
+	}
 	cfp($of->Checkbutton(-text => "Ask for DB", -variable => \$adc),'panebg','body',7,2);
 	$dbt = (FIO::config('DB','type') or 'L');
 	$sb = cfp($of->Button(-text => "MySQL", -command => sub { groupable(0,@fgroup,$sb); groupable(1,@sgroup,$fb); $dbt = 'M'; }, -anchor => 'center'),'buttonbg','button',3,2,'ew');
@@ -1305,10 +1470,10 @@ print "Saving $adb:$una@$dho/$dbn " . ($pwp ? "Safe" : "Free") . " $dty\n";
 	$adc = FIO::config('DB','askDB'); # Ordinarily, this would always be 1, but in case I ever add a Change DB button, I'm pulling it from config.
 	groupable(($dbt eq "L"),@fgroup,$sb); groupable(($dbt eq "M"),@sgroup,$fb);
 	#my ($sb,$fb,$dbt,$dnt,$snt,$pwc,$unt,$pwe,$loadb,$adc);
-	$dnt = (FIO::config('DB','dbname') or 'pantry');
-	$snt = (FIO::config('DB','host') or '');
+	$dnt = (FIO::config('DB','dbname') or '');
+	$snt = (FIO::config('DB','host') or 'pantry');
 	$unt = (FIO::config('DB','uname') or '');
-	$pwc and $pwe->focus();
+	($pwc ? $pwe->focus() : $loadb->focus()); # Focus either the password field or the load button
 	return;
 }
 print ".";

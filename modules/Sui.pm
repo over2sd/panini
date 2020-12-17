@@ -47,22 +47,6 @@ sub storeData {
 }
 print ".";
 
-#new for panini
-
-# Status hashes
-sub getStatHash { my $typ = shift; return (wat=>($typ eq 'man' ? "Read" : "Watch") . "ing",onh=>"On-hold",ptw=>"Plan to " . ($typ eq 'man' ? "Read" : "Watch"),com=>"Completed",drp=>"Dropped"); } # could be given i18n
-sub getStatOrder { return qw( wat onh ptw com drp ); }
-sub getStatIndex { return ( ptw => 0, wat => 1, onh => 2, rew => 3, com => 4, drp => 5 ); }
-sub getStatArray {
-	my $sa = [];
-	my %stats = (getStatHash(shift),rew=>"Re" . ($typ eq 'man' ? "read" : "watch") . "ing");
-	foreach (qw( ptw wat onh rew com drp )) {
-		push(@$sa,$stats{$_});
-	}
-	return $sa;
-}
-print ".";
-
 sub getOpts {
 	# First hash key (when sorted) MUST be a label containing a key that corresponds to the INI Section for the options that follow it!
 	# EACH Section needs a label conaining the Section name in the INI file where it resides.
@@ -92,6 +76,7 @@ sub getOpts {
 
 		'020' => ['l',"File",'Disk'],
 		'021' => ['t',"Database Lite files live here",'dbdir'],
+		'022' => ['t',"Servers are stored in this file",'servers',"servers.ini"],
 		
 		'030' => ['l',"User Interface",'UI'],
 		#'031' => ['t',"GUI",'GUI',"no"],
@@ -162,7 +147,7 @@ print ".";
 sub getDefaults {
 	return (
 		['Main','savepos',1],
-		['Main','width',975],
+		['Main','width',980],
 		['Main','height',640],
 		['UI','GUI','tk'],
 		['Font','bighead',"Verdana 24"],
@@ -171,7 +156,7 @@ sub getDefaults {
 		['Net','savethumbs',1],
 		['Net','thumbdir',"itn"],
 		['DB','lcgeneric',1],
-		['DB','askDB',0],
+		['DB','askDB',1],
 		['UI','mainbg',"#FED"],
 		['UI','gradient',"#F00,#F30,#F60,#F90,#FC0,#FF0,#CF0,#9F0,#6F0,#3F0,#0F0,#0F3,#0F6,#0F9,#0FC,#0FF,#0CF,#09F,#06F,#03F,#00F,#30F,#60F,#90F,#C0F,#F0F,#F0C,#F09,#F06,#F03,#EEF,#DDE,#CCD,#BBC,#AAB,#99A,#889,#778,#667,#556,#445,#334,#223,#112,#001"],
 	);

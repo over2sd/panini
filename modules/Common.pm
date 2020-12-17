@@ -179,17 +179,18 @@ sub findIn {
 	my ($v,@a) = @_;
 	if (defined $debug && $debug > 0) {
 		use Data::Dumper;
-		print ">>".Dumper @a;
-		print "($v)<<";
+#		print ">>".Dumper @a;
+#		print "($v)<<";
 	}
 	unless (defined $a[$#a] and defined $v) {
+		return -1 if (defined $v and ref(\@a) =~ /ARRAY/); # Given a scalar and an array, but the array is empty
 #		print "Found '$v' (" . @a . ")\n";
 		die "FATAL: findIn requires a \$SCALAR and an \@ARRAY (was given '" . $v . "' and '" . @a . "' at " . lineNo() . "\n";
 		return -1;
 	}
 	my $i = 0;
 	while ($i < scalar @a) {
-		print ":$i:" if $debug > 0;
+		#print ":$i:" if $debug > 0;
 		if ("$a[$i]" eq "$v") { return $i; }
 		$i++;
 	}

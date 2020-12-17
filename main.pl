@@ -1,11 +1,12 @@
 #!/usr/bin/perl
 use strict; use warnings;
 my $PROGRAMNAME = "Panini pantry system";
-my $version = "0.27a";
+my $version = "0.28a";
 my $cfn = "config.ini";
 my $debug = 1;
-my $dbn = 'pantry';
-my $dbs = '';
+my $dbn;
+my $dbs;
+my $dbu;
 my $active = '';
 
 $|++; # Immediate STDOUT, maybe?
@@ -59,6 +60,7 @@ require Options;
 Common::debugAdd('d'); # Show data transfer
 Common::debugAdd('g'); # Show certain GUI events
 Common::debugAdd('c'); # Show config loading
+#Common::debugAdd('x'); # Show coloring
 FIO::loadConf($cfn);
 FIO::config('Debug','v',$debug);
 my ($w,$h,$x,$y) = ((FIO::config('Main','width') or 1020),(FIO::config('Main','height') or 620),(FIO::config('Main','top') or 40),(FIO::config('Main','left') or 40),);
@@ -73,7 +75,7 @@ if (FIO::config('DB','askDB')) {
 } else {
 	my $pwc = (FIO::config('DB','pwp') or 0);
 	my $pwt;
-	my ($dbs,$dbu,$dbn) = ((FIO::config('DB','host') or "ERROR"),(FIO::config('DB','uname') or "ERROR"),(FIO::config('DB','dbname') or "ERROR"));
+	($dbs,$dbu,$dbn) = ((FIO::config('DB','host') or $dbs or "pantry"),(FIO::config('DB','uname') or "ERROR"),(FIO::config('DB','dbname') or $dbn or "ERROR"));
 	$pwc and ($pwt = TGUI::getDBPass($gui,$dbs,$dbu,$dbn));
 	my @args = ((FIO::config('DB','type') or 'L'),$dbs,);
 	if ("$args[0]" eq "M") {

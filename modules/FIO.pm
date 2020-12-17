@@ -57,9 +57,9 @@ sub useDefaults {
 	my @defs = Sui::getDefaults();
 	foreach my $d (@defs) {
 		if (defined config($$d[0],$$d[1])) {
-			Common::showDebug('c') and print "Using defined value " . config($$d[0],$$d[1]) . " for $$d[0]/$$d[1].\n";
+			Common::showDebug('c') and print "Using defined value" . (main::howVerbose() > 4 ? " " . config($$d[0],$$d[1]) : "") . " for $$d[0]/$$d[1].\n";
 		} else{ 
-			Common::showDebug('c') and print "Using default $$d[0]/$$d[1] of $$d[2].\n";
+			Common::showDebug('c') and print "Using default $$d[0]/$$d[1]" . (main::howVerbose() > 4 ? " of $$d[2].\n" : ".\n");
 			config($$d[0],$$d[1],$$d[2]);
 		}
 	}
@@ -70,6 +70,7 @@ sub validateConfig { # sets config values for missing required defaults
 	my %defaults = (
 		"savepos" => 0
 		);
+	print "\n";
 	foreach (keys %defaults) {
 		unless (config('Main',$_)) {
 			config('Main',$_,$defaults{$_});

@@ -26,7 +26,7 @@ sub createMainWin {
 	setBG($mw,'mainbg'); # set my background
 	$mw->geometry($geo);
 #	place($mw->Label(-relief => 'sunken',-textvariable => \$status,-anchor => 'nw', -justify => 'left'),2,2,'ews',-columnspan => 10); # a status bar
-	$statbar = $mw->Label(-relief => 'sunken',-textvariable => \$status,-anchor => 'sw', -justify => 'left')->pack(-side => 'bottom', -fill => 'x', -expand => 1); # a status bar
+	$statbar = $mw->Label(-relief => 'sunken',-textvariable => \$status,-anchor => 'sw', -justify => 'left')->pack(-side => 'bottom', -fill => 'x', -expand => 1, -anchor => 'sw'); # a status bar
 	$mw->protocol('WM_DELETE_WINDOW', sub {
 		if (FIO::config('Main','savepos') or 0) {
 			my $geo = $mw->geometry;
@@ -70,7 +70,7 @@ sub setFont {
 #	print " F $fn " . Common::lineNo(3,1);
 	unless (defined $fn) {
 		$fn = "Verdana 12";
-		Common::errorOut('inline','ile',string=>"\nUsing default font.");
+		Common::showDebug('t') and Common::errorOut('inline','ile',string=>"\nUsing default font.");
 	}
 	my $f = $w->GetDescriptiveFontName($fn);
 	# TODO: Sanity check font name
@@ -81,14 +81,19 @@ print ".";
 
 sub setBG {
 	my ($w,$cn) = @_;
-	ref($w) =~ m/Tk::/ or print Common::lineNo(2);
-#	print "Coloring " . ref($w) . " - ";
+	unless (ref($w) =~ m/Tk::|MainWindow/) {
+		print "setBG given " . ref($w) . Common::lineNo(2);
+		return $w;
+	}
 	if (ref(\$cn) eq "SCALAR") {
-#		print "Keyword: $cn";
-		$cn = (FIO::config('UI',$cn) or "%main%");
-#		print " $cn ";
+		#print "Keyword: $cn";
+		unless ($cn =~ m/$\#/) {
+			$cn = (FIO::config('UI',$cn) or "%main%");
+		}
+		#print " $cn ";
 	}
 	($cn eq "%main%") and $cn = (FIO::config('UI','mainbg') or "#CCF");
+	Common::showDebug('x') and print "Coloring " . ref($w) . " $cn - ";
 	$w->configure(-background => $cn);
 	return $w;
 }
@@ -160,7 +165,7 @@ print ".";
 sub place {
 	my ($w,$r,$c,$a,%extra) = @_;
 	my $s = Common::hashString(%extra);
-print "[T] Called " . Common::lineNo(3);
+	Common::showDebug('l') and print "[T] Called " . Common::lineNo(3);
 	$s = ($s eq "" ? "" : " + $s");
 	Common::showDebug('g') and main::howVerbose() > 5 and print "placeWidget: $r x $c, S:" . ($a or "'w'") . $s . "\n";
 	$w->grid(%extra);

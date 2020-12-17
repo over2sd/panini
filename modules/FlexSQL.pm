@@ -29,7 +29,7 @@ sub getDB {
 		(main::howVerbose() > 8) && print "\n[I] Returning existing DB handle...";
 		return $dbh;
 	}
-	skrDebug::dump(\@_,"Args to getDB:");
+	#skrDebug::dump(\@_,"Args to getDB:");
 	my ($dbtype) = shift;
 	if ($dbtype eq "0") { return undef; } # flag for not creating DB if not available
 	unless (defined $dbtype) { $dbtype = FIO::config('DB','type'); } # try to save
@@ -146,6 +146,7 @@ sub makeTables { # used for first run
 			$st =~ s/ UNSIGNED//g; # ...or unsigned?
 			$st =~ s/INT\(\d+\) PRIMARY KEY/INTEGER PRIMARY KEY/; #...or short integer keys?
 			$st =~ s/ AUTO_INCREMENT/ AUTOINCREMENT/g; #...or auto_increment?
+			$st =~ s/ NOW\(\)/ NOW/g; # ...or NOW()?
 		}
 		my $error = doQuery(2,$dbh,$st);
 		$widget->text("Making tables... table " . $i + 1 . "/$tot" . ($error ? ": $st\n" : "" )) if defined $widget;
@@ -164,7 +165,7 @@ sub doQuery {
 	my $realq;
 	print ":: " . FIO::config('Debug','v') . "//" . (Common::showDebug('q') ? "sD(q)" : "") . (Common::showDebug('Q') ? "sD(Q)" : "") . "\n" if (FIO::config('Debug','v') > 5) || Common::showDebug('q') || Common::showDebug('Q');
 	print "Received '$statement' ",join(',',@parms),"\n" if (FIO::config('Debug','v') > 5) || Common::showDebug('q') || Common::showDebug('Q');
-	unless (defined $dbh) {
+	unless (defined $dbh and "$dbh" ne "ERROR") {
 		Pdie("Baka! Send me a database, if you want data.");
 	}
 	my $safeq = $dbh->prepare($statement) or print "\nCould not prepare $statement" . Common::lineNo() . "\n";
